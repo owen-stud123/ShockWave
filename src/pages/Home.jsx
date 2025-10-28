@@ -35,7 +35,7 @@ const Home = () => {
             transition={{ duration: 0.8, delay: 0.6 }}
           >
             <Link 
-              to="/register" 
+              to="/login" 
               className="w-full sm:w-auto bg-white text-indigo-600 px-6 sm:px-8 py-3 rounded-lg text-base sm:text-lg font-semibold hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl"
             >
               Get Started
@@ -125,13 +125,13 @@ const Home = () => {
           </p>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center px-4">
             <Link 
-              to="/register" 
+              to="/login" 
               className="w-full sm:w-auto bg-indigo-600 text-white px-6 sm:px-8 py-3 rounded-lg text-base sm:text-lg font-semibold hover:bg-indigo-700 transition-all shadow-md hover:shadow-lg"
             >
               Join as Designer
             </Link>
             <Link 
-              to="/register" 
+              to="/login" 
               className="w-full sm:w-auto bg-purple-600 text-white px-6 sm:px-8 py-3 rounded-lg text-base sm:text-lg font-semibold hover:bg-purple-700 transition-all shadow-md hover:shadow-lg"
             >
               Hire Designers

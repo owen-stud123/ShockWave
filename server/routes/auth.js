@@ -26,7 +26,7 @@ const generateTokens = (userId) => {
 
 // Register
 router.post('/register', [
-  body('email').isEmail().normalizeEmail(),
+  body('username').isLength({ min: 3 }).trim(),
   body('password').isLength({ min: 6 }),
   body('name').notEmpty().trim(),
   body('role').isIn(['designer', 'business'])
@@ -37,12 +37,12 @@ router.post('/register', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, password, name, role } = req.body;
+    const { username, password, name, role } = req.body;
 
     // Check if user exists
-    const existingUser = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+    const existingUser = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
     if (existingUser) {
-      return res.status(409).json({ error: 'User already exists' });
+      return res.status(409).json({ error: 'Username already exists' });
     }
 
     // Hash password
@@ -51,9 +51,9 @@ router.post('/register', [
 
     // Create user
     const result = db.prepare(`
-      INSERT INTO users (email, password_hash, name, role)
+      INSERT INTO users (username, password_hash, name, role)
       VALUES (?, ?, ?, ?)
-    `).run(email, passwordHash, name, role);
+    `).run(username, passwordHash, name, role);
 
     // Create profile
     db.prepare(`
@@ -76,7 +76,7 @@ router.post('/register', [
       message: 'User created successfully',
       user: {
         id: result.lastInsertRowid,
-        email,
+        username,
         name,
         role
       },
@@ -90,7 +90,7 @@ router.post('/register', [
 
 // Login
 router.post('/login', [
-  body('email').isEmail().normalizeEmail(),
+  body('username').notEmpty().trim(),
   body('password').notEmpty()
 ], async (req, res) => {
   try {
@@ -99,13 +99,13 @@ router.post('/login', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, password } = req.body;
+    const { username, password } = req.body;
 
     // Get user
     const user = db.prepare(`
-      SELECT id, email, password_hash, name, role, is_active 
-      FROM users WHERE email = ?
-    `).get(email);
+      SELECT id, username, password_hash, name, role, is_active 
+      FROM users WHERE username = ?
+    `).get(username);
 
     if (!user || !user.is_active) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -135,7 +135,7 @@ router.post('/login', [
       message: 'Login successful',
       user: {
         id: user.id,
-        email: user.email,
+        username: user.username,
         name: user.name,
         role: user.role
       },
@@ -162,7 +162,7 @@ router.post('/refresh', (req, res) => {
       }
 
       // Get user
-      const user = db.prepare('SELECT id, email, name, role FROM users WHERE id = ? AND is_active = 1').get(decoded.userId);
+      const user = db.prepare('SELECT id, username, name, role FROM users WHERE id = ? AND is_active = 1').get(decoded.userId);
       if (!user) {
         return res.status(403).json({ error: 'User not found' });
       }

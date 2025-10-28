@@ -15,7 +15,7 @@ export const authenticateToken = (req, res, next) => {
     }
 
     // Get user from database
-    const user = db.prepare('SELECT id, email, role, name FROM users WHERE id = ? AND is_active = 1').get(decoded.userId);
+    const user = db.prepare('SELECT id, username, role, name FROM users WHERE id = ? AND is_active = 1').get(decoded.userId);
     
     if (!user) {
       return res.status(403).json({ error: 'User not found or inactive' });
@@ -50,7 +50,7 @@ export const optionalAuth = (req, res, next) => {
 
   jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
     if (!err) {
-      const user = db.prepare('SELECT id, email, role, name FROM users WHERE id = ? AND is_active = 1').get(decoded.userId);
+      const user = db.prepare('SELECT id, username, role, name FROM users WHERE id = ? AND is_active = 1').get(decoded.userId);
       if (user) {
         req.user = user;
       }

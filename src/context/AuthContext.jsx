@@ -75,10 +75,10 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
-  const login = async (email, password) => {
+  const login = async (username, password) => {
     dispatch({ type: 'LOGIN_START' });
     try {
-      const response = await authAPI.login(email, password);
+      const response = await authAPI.login(username, password);
       localStorage.setItem('accessToken', response.data.accessToken);
       dispatch({ type: 'LOGIN_SUCCESS', payload: response.data });
       return response.data;
