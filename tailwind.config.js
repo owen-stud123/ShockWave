@@ -2,16 +2,39 @@
 export default {
   content: [
     "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
+    // BEFORE: "./src/**/*.{js,ts,jsx,tsx}",
+    // AFTER:
+    "./FrontEnd/**/*.{js,ts,jsx,tsx}", 
   ],
   theme: {
     extend: {
       colors: {
+        charcoal: {
+          DEFAULT: '#2D3436',
+          light: '#3d4547',
+          dark: '#1d2426',
+        },
+        lightgray: {
+          DEFAULT: '#DFE6E9',
+          light: '#F5F7F8',
+          dark: '#B2BEC3',
+        },
+        mint: {
+          DEFAULT: '#00CEC9',
+          light: '#55EFC4',
+          dark: '#00B894',
+        },
         primary: {
-          50: '#eff6ff',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
+          50: '#e6fffe',
+          100: '#b3fffc',
+          200: '#80fffa',
+          300: '#4dffef',
+          400: '#1afff7',
+          500: '#00CEC9',
+          600: '#00b5b0',
+          700: '#009c98',
+          800: '#008380',
+          900: '#006a68',
         }
       },
       animation: {

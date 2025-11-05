@@ -1,6 +1,6 @@
-# Digital Marketplace for Graphic Designers & Businesses
+# 🌊 ShockWave - Digital Marketplace Platform
 
-A comprehensive two-sided marketplace platform connecting talented graphic designers with businesses seeking creative services.
+A comprehensive two-sided marketplace platform connecting talented graphic designers with businesses seeking creative services. Built with modern web technologies and featuring a sleek Charcoal, Light Gray, and Mint Green color scheme.
 
 ## 🚀 Features
 
@@ -67,10 +67,107 @@ Visit http://localhost:5173 for the frontend and http://localhost:5000 for the A
 
 **Change these passwords in production!**
 
-## React Compiler
+## 📚 Documentation
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+We've created comprehensive documentation to help you understand and navigate the platform:
 
-## Expanding the ESLint configuration
+- **[USER_FLOW.md](./USER_FLOW.md)** - Detailed user journey documentation
+  - First-time visitor flow
+  - Designer complete workflow
+  - Business hiring process
+  - Admin panel operations
+  - Common user actions and examples
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- **[PLATFORM_FLOW_DIAGRAM.md](./PLATFORM_FLOW_DIAGRAM.md)** - Visual flow diagrams
+  - System architecture
+  - Authentication flows
+  - Page navigation maps
+  - Payment & escrow system
+  - Search & filter flows
+  - Mobile navigation
+
+- **[QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - Developer quick reference
+  - All routes and components
+  - User roles and permissions
+  - Color palette guide
+  - Common UI patterns
+  - API endpoints
+  - Testing checklist
+
+## 🎨 Design System
+
+### Color Palette
+- **Charcoal** (#2D3436) - Primary text, dark backgrounds
+- **Light Gray** (#DFE6E9) - Backgrounds, secondary elements
+- **Mint Green** (#00CEC9) - Primary accent, CTAs, links
+
+### Key Features
+- Full-screen responsive layouts
+- Smooth animations with Framer Motion
+- Accessible design (WCAG compliant)
+- Mobile-first approach
+- Modern card-based UI
+
+## 🗺️ Platform Routes
+
+### Public Routes
+- `/` - Landing page
+- `/login` - User authentication
+- `/register` - New user registration
+- `/browse` - Browse designers (public)
+- `/designer/:id` - View designer profile
+
+### Protected Routes (Login Required)
+- `/dashboard` - Role-based user dashboard
+- `/messages` - Direct messaging system
+- `/checkout/:orderId` - Payment processing
+- `/admin` - Admin panel (admin only)
+
+## 🚦 User Roles
+
+### 👤 Visitor (Unauthenticated)
+- Browse public designer listings
+- View designer profiles
+- View project listings
+- Must register to interact
+
+### 🎨 Designer
+- Create & manage profile
+- Upload portfolio
+- Browse & apply to projects
+- Submit proposals
+- Receive payments
+- Communicate with clients
+
+### 💼 Business
+- Post projects
+- Browse & filter designers
+- Review proposals
+- Hire designers
+- Make payments
+- Leave reviews
+
+### 🔐 Admin
+- User management
+- Content moderation
+- Transaction monitoring
+- Dispute resolution
+- Platform analytics
+
+## 🎯 Quick User Journey Examples
+
+### Designer Gets First Client
+```
+Register → Setup Profile → Browse Projects → Submit Proposal 
+→ Get Hired → Complete Work → Get Paid → Receive Review
+```
+
+### Business Finds Designer
+```
+Register → Browse Designers → Apply Filters → View Profile 
+→ Contact Designer → Discuss Terms → Hire → Pay → Review
+```
+
+## 📄 License
+
+MIT License - feel free to use this project for learning and development.

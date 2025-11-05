@@ -1,0 +1,59 @@
+import express from 'express';
+import { body } from 'express-validator';
+import { authenticateToken, requireRole } from '../middleware/auth.js';
+import { 
+  getAllListings, 
+  getListingById, 
+  createListing,
+  createProposal
+} from '../controllers/listingsController.js';
+
+const router = express.Router();
+
+// Validation Middleware
+const createListingValidation = [
+  body('title').notEmpty().withMessage('Title is required'),
+  body('description').notEmpty().withMessage('Description is required'),
+  body('budget_min').isFloat({ gt: 0 }).withMessage('Minimum budget must be a positive number'),
+  body('budget_max').isFloat().custom((value, { req }) => {
+    if (value < req.body.budget_min) {
+      throw new Error('Maximum budget must be greater than or equal to the minimum budget.');
+    }
+    return true;
+  }),
+  body('deadline').optional().isISO8601().toDate(),
+  body('tags').optional().isArray()
+];
+
+const createProposalValidation = [
+  body('message').notEmpty().withMessage('A message is required for your proposal'),
+  body('price_offered').isFloat({ gt: 0 }).withMessage('Offered price must be a positive number'),
+  body('delivery_time').isInt({ gt: 0 }).withMessage('Delivery time must be a positive number of days')
+];
+
+// --- Listing Routes ---
+router.get('/', getAllListings);
+router.get('/:id', getListingById);
+router.post(
+  '/', 
+  authenticateToken, 
+  requireRole(['business']), 
+  createListingValidation,
+  createListing
+);
+
+// --- Proposal Routes ---
+router.post(
+  '/:id/proposals', 
+  authenticateToken, 
+  requireRole(['designer']), 
+  createProposalValidation,
+  createProposal
+);
+
+
+// TODO: Add routes for updating and deleting listings
+// router.put('/:id', authenticateToken, (req, res) => { ... });
+// router.delete('/:id', authenticateToken, (req, res) => { ... });
+
+export default router;
