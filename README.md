@@ -737,9 +737,6 @@ Login → View Dashboard → Monitor Transactions → Review Reports
 ---
 
 <div align="center">
-
-**[⬆ Back to Top](#-shockwave---digital-marketplace-platform)**
-
-**🌊 ShockWave - Connect. Create. Collaborate.**
-
+  <strong><a href="#shockwave---digital-marketplace-platform">↑ Back to Top</a></strong><br>
+  <strong>🌊 ShockWave – Connect. Create. Collaborate.</strong>
 </div>
