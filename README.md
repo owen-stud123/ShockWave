@@ -2,7 +2,7 @@
 
 A comprehensive two-sided marketplace platform connecting talented graphic designers with businesses seeking creative services. Built with modern web technologies and featuring a sleek Charcoal, Light Gray, and Mint Green color scheme.
 
-## 🚀 Features
+## Features
 
 ### For Designers
 - **Professional Profiles**: Showcase your skills, portfolio, and experience
@@ -18,7 +18,7 @@ A comprehensive two-sided marketplace platform connecting talented graphic desig
 - **Project Tracking**: Monitor project progress from start to finish
 - **Review System**: Rate and review designers for future references
 
-## 🛠 Tech Stack
+## Tech Stack
 
 ### Frontend
 - **React 19** - Modern UI library
@@ -33,7 +33,7 @@ A comprehensive two-sided marketplace platform connecting talented graphic desig
 - **JWT** - Authentication
 - **Stripe** - Payment processing
 
-## 📦 Quick Start
+## Quick Start
 
 1. **Install dependencies**
    ```bash
@@ -59,7 +59,7 @@ A comprehensive two-sided marketplace platform connecting talented graphic desig
 
 Visit http://localhost:5173 for the frontend and http://localhost:5000 for the API.
 
-## 🔑 Default Accounts
+## Default Accounts
 
 - **Admin**: admin@designmarket.com / admin123
 - **Designer**: designer@example.com / designer123  
@@ -67,7 +67,7 @@ Visit http://localhost:5173 for the frontend and http://localhost:5000 for the A
 
 **Change these passwords in production!**
 
-## 📚 Documentation
+## Documentation
 
 We've created comprehensive documentation to help you understand and navigate the platform:
 
@@ -94,7 +94,7 @@ We've created comprehensive documentation to help you understand and navigate th
   - API endpoints
   - Testing checklist
 
-## 🎨 Design System
+## Design System
 
 ### Color Palette
 - **Charcoal** (#2D3436) - Primary text, dark backgrounds
@@ -108,7 +108,7 @@ We've created comprehensive documentation to help you understand and navigate th
 - Mobile-first approach
 - Modern card-based UI
 
-## 🗺️ Platform Routes
+## Platform Routes
 
 ### Public Routes
 - `/` - Landing page
@@ -123,15 +123,15 @@ We've created comprehensive documentation to help you understand and navigate th
 - `/checkout/:orderId` - Payment processing
 - `/admin` - Admin panel (admin only)
 
-## 🚦 User Roles
+## User Roles
 
-### 👤 Visitor (Unauthenticated)
+### Visitor (Unauthenticated)
 - Browse public designer listings
 - View designer profiles
 - View project listings
 - Must register to interact
 
-### 🎨 Designer
+### Designer
 - Create & manage profile
 - Upload portfolio
 - Browse & apply to projects
@@ -139,7 +139,7 @@ We've created comprehensive documentation to help you understand and navigate th
 - Receive payments
 - Communicate with clients
 
-### 💼 Business
+### Business
 - Post projects
 - Browse & filter designers
 - Review proposals
@@ -147,14 +147,14 @@ We've created comprehensive documentation to help you understand and navigate th
 - Make payments
 - Leave reviews
 
-### 🔐 Admin
+### Admin
 - User management
 - Content moderation
 - Transaction monitoring
 - Dispute resolution
 - Platform analytics
 
-## 🎯 Quick User Journey Examples
+## Quick User Journey Examples
 
 ### Designer Gets First Client
 ```
@@ -168,6 +168,6 @@ Register → Browse Designers → Apply Filters → View Profile
 → Contact Designer → Discuss Terms → Hire → Pay → Review
 ```
 
-## 📄 License
+## License
 
 MIT License - feel free to use this project for learning and development.
