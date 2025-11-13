@@ -1,26 +1,55 @@
-import { useParams, useNavigate } from 'react-router-dom'; // Import useNavigate
+import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { profileAPI, reviewAPI } from '../services/api';
 import { motion } from 'framer-motion';
-import { useAuth } from '../context/AuthContext'; // Import useAuth
+import { useAuth } from '../context/AuthContext';
 
-// ... (StarRating component remains the same)
-const StarRating = ({ rating, reviewCount }) => { /* ... */ };
+const StarRating = ({ rating, reviewCount }) => {
+  if (!rating) return <div className="text-sm text-charcoal-light">No reviews yet</div>;
+  const fullStars = Math.floor(rating);
+  const halfStar = rating % 1 !== 0;
+  const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
+
+  return (
+    <div className="flex items-center">
+      {[...Array(fullStars)].map((_, i) => <span key={`full_${i}`} className="text-yellow-400 text-xl">★</span>)}
+      {halfStar && <span className="text-yellow-400 text-xl">☆</span>}
+      {[...Array(emptyStars)].map((_, i) => <span key={`empty_${i}`} className="text-gray-300 text-xl">★</span>)}
+      {reviewCount > 0 && <span className="ml-2 text-charcoal-light text-sm">({reviewCount} reviews)</span>}
+    </div>
+  );
+};
 
 const Profile = () => {
   const { id } = useParams();
-  const { user, isAuthenticated } = useAuth(); // Get current user info
-  const navigate = useNavigate(); // Hook for navigation
+  const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // ... (useEffect for fetching profile data remains the same)
+    const fetchProfileData = async () => {
+      try {
+        setLoading(true);
+        // Fetch both profile and reviews at the same time for efficiency
+        const [profileRes, reviewsRes] = await Promise.all([
+          profileAPI.getProfile(id),
+          reviewAPI.getReviewsForUser(id)
+        ]);
+        setProfile(profileRes.data);
+        setReviews(reviewsRes.data);
+      } catch (error) {
+        console.error('Failed to fetch profile data:', error);
+        // This will stop the loading spinner even if there's an error
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfileData();
   }, [id]);
 
   const handleContact = () => {
-    // Navigate to the messages page and pass the profile owner's info
     navigate('/messages', { 
       state: { 
         newConversationWith: {
@@ -31,27 +60,88 @@ const Profile = () => {
     });
   };
 
-  if (loading) { /* ... */ }
-  if (!profile) { /* ... */ }
+  // Display a loading indicator while fetching data
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-4 border-mint"></div>
+      </div>
+    );
+  }
 
-  // Determine if the contact button should be shown
-  const showContactButton = isAuthenticated && user.role === 'business' && user.id !== profile.user_id;
+  // Display an error message if the profile could not be loaded
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <h2 className="text-2xl font-bold text-charcoal">Designer profile not found.</h2>
+      </div>
+    );
+  }
+
+  // --- THIS IS THE DEFINITIVE FIX ---
+  // The base URL for static files should NOT include '/api'.
+  const SERVER_BASE_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
+  
+  const avatarUrl = profile.avatar_url
+    ? `${SERVER_BASE_URL}${profile.avatar_url}`
+    : `https://ui-avatars.com/api/?name=${profile.name.replace(' ', '+')}&background=DFE6E9&color=2D3436`;
+    
+  const showContactButton = isAuthenticated && user?.role === 'business' && user?.id !== profile.user_id;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <motion.div /* ... */ >
-        {/* ... (Header and Main Content sections remain the same) ... */}
-        
-        {/* We will modify the Sidebar section */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-lg shadow-lg overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-charcoal to-charcoal-light p-8 text-white">
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+            <img 
+              src={avatarUrl} 
+              alt={profile.name}
+              className="w-24 h-24 rounded-full object-cover border-4 border-mint bg-white"
+            />
+            <div>
+              <h1 className="text-3xl font-bold">{profile.name}</h1>
+              <p className="text-xl capitalize text-lightgray">{profile.role}</p>
+              <div className="mt-2">
+                <StarRating rating={profile.avg_rating} reviewCount={profile.review_count} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Content */}
         <div className="p-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Main Content */}
             <div className="lg:col-span-2">
-              {/* ... (About Me and Reviews sections) ... */}
+              <section className="mb-8">
+                <h2 className="text-2xl font-bold text-charcoal mb-4">About Me</h2>
+                <p className="text-charcoal-light leading-relaxed">{profile.bio || 'No bio available.'}</p>
+              </section>
+              <section>
+                <h2 className="text-2xl font-bold text-charcoal mb-4">Reviews</h2>
+                <div className="space-y-6">
+                  {reviews.length > 0 ? (
+                    reviews.map(review => (
+                      <div key={review.id} className="border-b border-lightgray pb-4 last:border-b-0">
+                        <div className="flex items-center mb-2">
+                          <StarRating rating={review.rating} />
+                          <p className="ml-auto text-sm text-charcoal-light">{new Date(review.created_at).toLocaleDateString()}</p>
+                        </div>
+                        <p className="text-charcoal">{review.comment}</p>
+                        <p className="text-sm font-semibold text-charcoal-light mt-2">- {review.reviewer_name}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-charcoal-light">This user has not received any reviews yet.</p>
+                  )}
+                </div>
+              </section>
             </div>
 
             {/* Sidebar */}
             <div className="lg:col-span-1">
-              <div className="bg-gray-50 p-6 rounded-lg sticky top-24">
+              <div className="bg-lightgray-light p-6 rounded-lg sticky top-24">
                 <h3 className="text-lg font-semibold text-charcoal mb-4">Quick Info</h3>
                 
                 {profile.hourly_rate && (
@@ -68,7 +158,6 @@ const Profile = () => {
                   </p>
                 </div>
 
-                {/* --- CONTACT BUTTON ADDED HERE --- */}
                 {showContactButton && (
                   <button 
                     onClick={handleContact}

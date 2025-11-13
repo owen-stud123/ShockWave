@@ -15,30 +15,29 @@
     "install:all": "npm install && npm run server:install"
   },
   "dependencies": {
-    "axios": "^1.7.9",
-    "framer-motion": "^11.15.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^6.28.0",
-    "socket.io-client": "^4.7.5",
-    "ws": "^8.18.3"
+    "axios": "^1.7.9",
+    "framer-motion": "^11.15.0",
+    "socket.io-client": "4.7.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
-    "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/react": "^16.1.0",
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.4",
-    "autoprefixer": "^10.4.20",
-    "concurrently": "^8.2.2",
     "eslint": "^9.36.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.22",
     "globals": "^16.4.0",
-    "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.14",
     "vite": "^7.1.7",
+    "tailwindcss": "^3.4.14",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "concurrently": "^8.2.2",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/jest-dom": "^6.6.3",
     "vitest": "^2.1.8"
   }
 }

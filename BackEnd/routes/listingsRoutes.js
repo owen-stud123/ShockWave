@@ -5,7 +5,8 @@ import {
   getAllListings, 
   getListingById, 
   createListing,
-  createProposal
+  createProposal,
+  getProposalsForListing
 } from '../controllers/listingsController.js';
 
 const router = express.Router();
@@ -16,7 +17,7 @@ const createListingValidation = [
   body('description').notEmpty().withMessage('Description is required'),
   body('budget_min').isFloat({ gt: 0 }).withMessage('Minimum budget must be a positive number'),
   body('budget_max').isFloat().custom((value, { req }) => {
-    if (value < req.body.budget_min) {
+    if (parseFloat(value) < parseFloat(req.body.budget_min)) {
       throw new Error('Maximum budget must be greater than or equal to the minimum budget.');
     }
     return true;
@@ -43,6 +44,15 @@ router.post(
 );
 
 // --- Proposal Routes ---
+// GET proposals for a listing (for the business owner)
+router.get(
+  '/:id/proposals',
+  authenticateToken,
+  requireRole(['business']),
+  getProposalsForListing
+);
+
+// POST a proposal to a listing (for designers)
 router.post(
   '/:id/proposals', 
   authenticateToken, 
@@ -50,10 +60,5 @@ router.post(
   createProposalValidation,
   createProposal
 );
-
-
-// TODO: Add routes for updating and deleting listings
-// router.put('/:id', authenticateToken, (req, res) => { ... });
-// router.delete('/:id', authenticateToken, (req, res) => { ... });
 
 export default router;

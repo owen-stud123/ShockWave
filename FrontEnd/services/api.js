@@ -2,12 +2,13 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+// Create axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
 });
 
-// ... (Interceptors are correct and do not need to be changed)
+// Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('accessToken');
@@ -21,6 +22,7 @@ api.interceptors.request.use(
   }
 );
 
+// Response interceptor to handle token refresh
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -42,7 +44,6 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
 
 // --- API Service Objects ---
 
@@ -69,6 +70,7 @@ export const listingAPI = {
   getListing: (id) => api.get(`/listings/${id}`),
   createListing: (data) => api.post('/listings', data),
   submitProposal: (listingId, data) => api.post(`/listings/${listingId}/proposals`, data),
+  getProposalsForListing: (listingId) => api.get(`/listings/${listingId}/proposals`),
 };
 
 export const orderAPI = {
@@ -78,22 +80,20 @@ export const orderAPI = {
   updateOrderStatus: (id, status) => api.patch(`/orders/${id}/status`, { status }),
 };
 
-// THIS IS THE MISSING PIECE
 export const messageAPI = {
   getThreads: () => api.get('/messages/threads'),
   getMessages: (participantId) => api.get(`/messages/threads/${participantId}`),
-  // sendMessage is handled by Socket.IO, but you could have a POST fallback
+};
+
+export const reviewAPI = {
+  createReview: (data) => api.post('/reviews', data),
+  getReviewsForUser: (userId) => api.get(`/reviews/user/${userId}`),
 };
 
 export const uploadAPI = {
   uploadAvatar: (formData) => api.post('/uploads/avatar', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
-};
-
-export const reviewAPI = {
-  createReview: (data) => api.post('/reviews', data),
-  getReviewsForUser: (userId) => api.get(`/reviews/user/${userId}`),
 };
 
 export const adminAPI = {

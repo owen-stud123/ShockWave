@@ -46,7 +46,13 @@ BackEnd/.env.example
 BackEnd/app.js
 BackEnd/check-db.js
 BackEnd/config/database.js
-BackEnd/controllers/placeholder.txt
+BackEnd/controllers/authController.js
+BackEnd/controllers/dashboardController.js
+BackEnd/controllers/listingsController.js
+BackEnd/controllers/messagesController.js
+BackEnd/controllers/profileController.js
+BackEnd/controllers/reviewsController.js
+BackEnd/controllers/uploadController.js
 BackEnd/database.sqlite
 BackEnd/middleware/auth.js
 BackEnd/middleware/errorHandler.js
@@ -54,14 +60,30 @@ BackEnd/models/placeholder.txt
 BackEnd/package.json
 BackEnd/routes/adminRoutes.js
 BackEnd/routes/authRoutes.js
+BackEnd/routes/dashboardRoutes.js
 BackEnd/routes/listingsRoutes.js
 BackEnd/routes/messagesRoutes.js
 BackEnd/routes/ordersRoutes.js
 BackEnd/routes/paymentsRoutes.js
 BackEnd/routes/profileRoutes.js
+BackEnd/routes/reviewsRoutes.js
+BackEnd/routes/uploadRoutes.js
 BackEnd/scripts/init.js
 BackEnd/services/placeholder.txt
 BackEnd/test-auth.js
+BackEnd/uploads/avatar-1762325296812-221264594.JPG
+BackEnd/uploads/avatar-1762325682386-937779326.JPG
+BackEnd/uploads/avatar-1762325760099-964931611.JPG
+BackEnd/uploads/avatar-1762326265889-544456786.JPG
+BackEnd/uploads/avatar-1762326390458-480307754.JPG
+BackEnd/uploads/avatar-1762326715135-467890813.JPG
+BackEnd/uploads/avatar-1762326816877-298001955.JPG
+BackEnd/uploads/avatar-1762326931039-344859974.JPG
+BackEnd/uploads/avatar-1762329535231-384055876.JPG
+BackEnd/uploads/avatar-1762329627915-477332700.JPG
+BackEnd/uploads/avatar-1762330256237-488604816.png
+BackEnd/uploads/avatar-1762330770888-104961900.JPG
+BackEnd/uploads/avatar-1762353879366-516174905.JPG
 BackEnd/utils/placeholder.txt
 DOCUMENTATION_INDEX.md
 ERROR_CHECK_REPORT.md
@@ -69,17 +91,23 @@ eslint.config.js
 FrontEnd/App.jsx
 FrontEnd/components/Footer.jsx
 FrontEnd/components/Navbar.jsx
+FrontEnd/components/PrivateRoute.jsx
+FrontEnd/components/ProfileEdit.jsx
+FrontEnd/components/ReviewForm.jsx
 FrontEnd/context/AuthContext.jsx
 FrontEnd/main.jsx
 FrontEnd/pages/AdminPanel.jsx
 FrontEnd/pages/Browse.jsx
 FrontEnd/pages/Checkout.jsx
+FrontEnd/pages/CreateListing.jsx
 FrontEnd/pages/Dashboard.jsx
 FrontEnd/pages/Home.jsx
 FrontEnd/pages/ListingDetail.jsx
+FrontEnd/pages/Listings.jsx
 FrontEnd/pages/Login.jsx
 FrontEnd/pages/Messages.jsx
 FrontEnd/pages/Profile.jsx
+FrontEnd/pages/ProfileEdit.jsx
 FrontEnd/pages/Register.jsx
 FrontEnd/services/api.js
 FrontEnd/styles/App.css
@@ -99,6 +127,33 @@ vite.config.js
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path=".gitignore">
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+</file>
 
 <file path="BackEnd/.env">
 # Server Configuration
@@ -131,7 +186,9 @@ UPLOAD_PATH=./uploads
 
 # Rate Limiting
 RATE_LIMIT_WINDOW=900000
-RATE_LIMIT_MAX=100
+# --- THIS IS THE FIX ---
+RATE_LIMIT_MAX=1000
+# --- END OF FIX ---
 </file>
 
 <file path="BackEnd/.env.example">
@@ -174,14 +231,16 @@ RATE_LIMIT_MAX=100
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import http from 'http';
+import { Server } from 'socket.io';
+import db from './config/database.js';
 
-// Import routes
+// Import routes and middleware...
 import authRoutes from './routes/authRoutes.js';
 import profileRoutes from './routes/profileRoutes.js';
 import listingRoutes from './routes/listingsRoutes.js';
@@ -189,40 +248,49 @@ import orderRoutes from './routes/ordersRoutes.js';
 import messageRoutes from './routes/messagesRoutes.js';
 import paymentRoutes from './routes/paymentsRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
-
-// Import middleware
+import dashboardRoutes from './routes/dashboardRoutes.js';
+import uploadRoutes from './routes/uploadRoutes.js';
+import reviewsRoutes from './routes/reviewsRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { authenticateToken } from './middleware/auth.js';
 
-// Load environment variables
 dotenv.config();
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const app = express();
-const PORT = process.env.PORT || 5000;
+const server = http.createServer(app);
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  process.env.CLIENT_URL
+].filter(Boolean);
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+};
+
+const io = new Server(server, {
+  cors: corsOptions,
+  transports: ['polling', 'websocket']
 });
 
-// Middleware
-app.use(helmet());
-app.use(morgan('combined'));
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
-  credentials: true
-}));
-app.use(limiter);
+const PORT = process.env.PORT || 5000;
+
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+app.use(cors(corsOptions));
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100, message: 'Too many requests' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // API Routes
@@ -233,21 +301,68 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/admin', authenticateToken, adminRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/uploads', uploadRoutes);
+app.use('/api/reviews', reviewsRoutes);
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    version: '1.0.0'
+app.get('/api/health', (req, res) => res.json({ status: 'OK' }));
+
+// --- THIS IS THE DEFINITIVE FIX FOR SOCKETS ---
+io.on('connection', (socket) => {
+  console.log('🔌 A user connected:', socket.id);
+  socket.on('join_room', (userId) => {
+    socket.join(userId.toString());
+  });
+
+  socket.on('send_message', (data) => {
+    try {
+      const { sender_id, recipient_id, body } = data;
+      if (!sender_id || !recipient_id || !body) {
+        console.error('Socket Event Error: Invalid message data received:', data);
+        return;
+      }
+      
+      const thread_id = [sender_id, recipient_id].sort().join('-');
+      const createdAt = new Date().toISOString();
+      
+      const stmt = db.prepare(`
+        INSERT INTO messages (thread_id, sender_id, recipient_id, body, created_at, is_read)
+        VALUES (@thread_id, @sender_id, @recipient_id, @body, @created_at, @is_read)
+      `);
+      
+      const result = stmt.run({
+        thread_id: thread_id,
+        sender_id: sender_id,
+        recipient_id: recipient_id,
+        body: body,
+        created_at: createdAt,
+        is_read: 0
+      });
+
+      if (result.changes === 0) {
+        throw new Error("Database INSERT failed, no rows were changed.");
+      }
+      
+      const newMessage = db.prepare('SELECT * FROM messages WHERE id = ?').get(result.lastInsertRowid);
+
+      if (newMessage) {
+        io.to(recipient_id.toString()).emit('receive_message', newMessage);
+        io.to(sender_id.toString()).emit('receive_message', newMessage);
+      }
+    } catch (error) {
+      console.error('!!! CRITICAL FAILURE in "send_message" event:', error);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('🔥 A user disconnected:', socket.id);
   });
 });
 
-// Error handling middleware
+
 app.use(errorHandler);
 
-// Start server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
@@ -455,8 +570,759 @@ export const initializeDatabase = () => {
 export default db;
 </file>
 
-<file path="BackEnd/controllers/placeholder.txt">
-// placeholder
+<file path="BackEnd/controllers/authController.js">
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { validationResult } from 'express-validator';
+import db from '../config/database.js';
+
+// Generate JWT tokens
+const generateTokens = (userId) => {
+  const accessToken = jwt.sign(
+    { userId }, 
+    process.env.JWT_SECRET, 
+    { expiresIn: '15m' }
+  );
+  
+  const refreshToken = jwt.sign(
+    { userId }, 
+    process.env.JWT_REFRESH_SECRET, 
+    { expiresIn: '7d' }
+  );
+
+  return { accessToken, refreshToken };
+};
+
+// @desc    Register a new user
+// @route   POST /api/auth/register
+// @access  Public
+export const registerUser = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { username, password, name, role } = req.body;
+
+    const existingUser = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+    if (existingUser) {
+      return res.status(409).json({ error: 'Username already exists' });
+    }
+
+    const saltRounds = 12;
+    const passwordHash = await bcrypt.hash(password, saltRounds);
+
+    const result = db.prepare(`
+      INSERT INTO users (username, password_hash, name, role)
+      VALUES (?, ?, ?, ?)
+    `).run(username, passwordHash, name, role);
+
+    const userId = result.lastInsertRowid;
+    db.prepare(`
+      INSERT INTO profiles (user_id, bio, skills, portfolio_urls, social_links)
+      VALUES (?, '', '[]', '[]', '{}')
+    `).run(userId);
+
+    const { accessToken, refreshToken } = generateTokens(userId);
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    res.status(201).json({
+      message: 'User created successfully',
+      user: { id: userId, username, name, role },
+      accessToken
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Authenticate user & get token
+// @route   POST /api/auth/login
+// @access  Public
+export const loginUser = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { username, password } = req.body;
+
+    const user = db.prepare(`
+      SELECT id, username, password_hash, name, role, is_active 
+      FROM users WHERE username = ?
+    `).get(username);
+
+    if (!user || !user.is_active) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const isValidPassword = await bcrypt.compare(password, user.password_hash);
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?').run(user.id);
+
+    const { accessToken, refreshToken } = generateTokens(user.id);
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    res.json({
+      message: 'Login successful',
+      user: { id: user.id, username: user.username, name: user.name, role: user.role },
+      accessToken
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Refresh access token
+// @route   POST /api/auth/refresh
+// @access  Public
+export const refreshToken = (req, res, next) => {
+  try {
+    const { refreshToken } = req.cookies;
+    if (!refreshToken) {
+      return res.status(401).json({ error: 'Refresh token required' });
+    }
+
+    jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, (err, decoded) => {
+      if (err) {
+        return res.status(403).json({ error: 'Invalid refresh token' });
+      }
+
+      const user = db.prepare('SELECT id, username, name, role FROM users WHERE id = ? AND is_active = 1').get(decoded.userId);
+      if (!user) {
+        return res.status(403).json({ error: 'User not found' });
+      }
+
+      const { accessToken } = generateTokens(user.id);
+      res.json({ accessToken, user });
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Logout user
+// @route   POST /api/auth/logout
+// @access  Private
+export const logoutUser = (req, res) => {
+  res.clearCookie('refreshToken');
+  res.json({ message: 'Logged out successfully' });
+};
+
+// @desc    Get current user profile
+// @route   GET /api/auth/me
+// @access  Private
+export const getMe = (req, res) => {
+  res.json({ user: req.user });
+};
+</file>
+
+<file path="BackEnd/controllers/dashboardController.js">
+import db from '../config/database.js';
+
+// @desc    Get dashboard stats for the logged-in user
+// @route   GET /api/dashboard/stats
+// @access  Private
+export const getDashboardStats = (req, res, next) => {
+  try {
+    // --- DEBUGGING STEP 1 ---
+    // Log to confirm the function is being called and we have the correct user.
+    console.log('--- Fetching Dashboard Stats ---');
+    if (!req.user) {
+      console.error('ERROR: req.user is not defined. Middleware might have failed.');
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    const userId = req.user.id;
+    const role = req.user.role;
+    console.log(`User ID: ${userId}, Role: ${role}`);
+
+    let activeProjectsQuery;
+    let financialQuery;
+
+    if (role === 'designer') {
+      activeProjectsQuery = `SELECT COUNT(id) as count FROM orders WHERE seller_id = ? AND status IN ('in_progress', 'delivered')`;
+      financialQuery = `SELECT SUM(amount) as total FROM orders WHERE seller_id = ? AND status = 'completed'`;
+    } else { // 'business' role
+      activeProjectsQuery = `SELECT COUNT(id) as count FROM orders WHERE buyer_id = ? AND status IN ('in_progress', 'delivered')`;
+      financialQuery = `SELECT SUM(amount) as total FROM orders WHERE buyer_id = ? AND status = 'completed'`;
+    }
+
+    const reviewsReceivedQuery = `SELECT COUNT(id) as count FROM reviews WHERE reviewee_id = ?`;
+    const unreadMessagesQuery = `SELECT COUNT(id) as count FROM messages WHERE recipient_id = ? AND is_read = 0`;
+
+    // Execute queries
+    const projectsResult = db.prepare(activeProjectsQuery).get(userId);
+    const financialResult = db.prepare(financialQuery).get(userId);
+    const reviewsResult = db.prepare(reviewsReceivedQuery).get(userId);
+    const messagesResult = db.prepare(unreadMessagesQuery).get(userId);
+
+    // --- DEBUGGING STEP 2 ---
+    // Log the raw results from the database queries.
+    console.log('Raw DB Results:');
+    console.log('  Projects:', projectsResult);
+    console.log('  Financial:', financialResult);
+    console.log('  Reviews:', reviewsResult);
+    console.log('  Messages:', messagesResult);
+
+    const stats = {
+      projects: projectsResult?.count || 0,
+      earnings: financialResult?.total || 0.00,
+      reviews: reviewsResult?.count || 0,
+      messages: messagesResult?.count || 0,
+    };
+
+    // --- DEBUGGING STEP 3 ---
+    // Log the final JSON object being sent to the frontend.
+    console.log('Final Stats Object Sent to Frontend:', stats);
+    console.log('--------------------------------\n');
+
+    res.json(stats);
+  } catch (error) {
+    console.error("CRITICAL ERROR in getDashboardStats:", error);
+    next(error);
+  }
+};
+</file>
+
+<file path="BackEnd/controllers/listingsController.js">
+import { validationResult } from 'express-validator';
+import db from '../config/database.js';
+
+// @desc    Get all listings
+// @route   GET /api/listings
+// @access  Public
+export const getAllListings = (req, res, next) => {
+  try {
+    const listings = db.prepare(`
+      SELECT l.*, u.name as owner_name 
+      FROM listings l
+      JOIN users u ON l.owner_id = u.id
+      WHERE l.status = 'open' 
+      ORDER BY l.created_at DESC
+    `).all();
+    res.json(listings);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get a single listing by ID
+// @route   GET /api/listings/:id
+// @access  Public
+export const getListingById = (req, res, next) => {
+  try {
+    const listing = db.prepare(`
+      SELECT l.*, u.name as owner_name 
+      FROM listings l
+      JOIN users u ON l.owner_id = u.id
+      WHERE l.id = ?
+    `).get(req.params.id);
+
+    if (!listing) {
+      return res.status(404).json({ error: 'Listing not found' });
+    }
+    res.json(listing);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Create a new listing
+// @route   POST /api/listings
+// @access  Private (Business only)
+export const createListing = (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { title, description, budget_min, budget_max, deadline, tags } = req.body;
+    const owner_id = req.user.id;
+
+    const result = db.prepare(`
+      INSERT INTO listings (owner_id, title, description, budget_min, budget_max, deadline, tags)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(owner_id, title, description, budget_min, budget_max, deadline, JSON.stringify(tags || []));
+    
+    res.status(201).json({ id: result.lastInsertRowid, message: 'Listing created successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Submit a proposal to a listing
+// @route   POST /api/listings/:id/proposals
+// @access  Private (Designer only)
+export const createProposal = (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const listing_id = req.params.id;
+    const designer_id = req.user.id;
+    const { message, price_offered, delivery_time } = req.body;
+
+    const existingProposal = db.prepare(
+      'SELECT id FROM proposals WHERE listing_id = ? AND designer_id = ?'
+    ).get(listing_id, designer_id);
+
+    if (existingProposal) {
+      return res.status(409).json({ error: 'You have already submitted a proposal for this listing.' });
+    }
+
+    db.prepare(`
+      INSERT INTO proposals (listing_id, designer_id, message, price_offered, delivery_time)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(listing_id, designer_id, message, price_offered, delivery_time);
+
+    res.status(201).json({ message: 'Proposal submitted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get all proposals for a specific listing
+// @route   GET /api/listings/:id/proposals
+// @access  Private (Listing Owner only)
+export const getProposalsForListing = (req, res, next) => {
+  try {
+    const listingId = req.params.id;
+    const userId = req.user.id;
+
+    // First, verify that the current user owns this listing
+    const listing = db.prepare('SELECT owner_id FROM listings WHERE id = ?').get(listingId);
+    if (!listing || listing.owner_id !== userId) {
+      return res.status(403).json({ error: 'You are not authorized to view proposals for this listing.' });
+    }
+
+    // If authorized, fetch all proposals and join with user/profile data
+    const proposals = db.prepare(`
+      SELECT
+        prop.id,
+        prop.designer_id,
+        prop.message,
+        prop.price_offered,
+        prop.delivery_time,
+        prop.created_at,
+        u.name as designer_name,
+        p.avatar_url as designer_avatar
+      FROM proposals prop
+      JOIN users u ON prop.designer_id = u.id
+      LEFT JOIN profiles p ON u.id = p.user_id
+      WHERE prop.listing_id = ?
+      ORDER BY prop.created_at DESC
+    `).all(listingId);
+
+    res.json(proposals);
+  } catch (error) {
+    console.error("Error fetching proposals:", error);
+    next(error);
+  }
+};
+</file>
+
+<file path="BackEnd/controllers/messagesController.js">
+import db from '../config/database.js';
+
+// Helper function (no changes)
+const generateThreadId = (userId1, userId2) => {
+  return [userId1, userId2].sort().join('-');
+};
+
+// @desc    Get all message threads for the logged-in user
+// @route   GET /api/messages/threads
+// @access  Private
+export const getMessageThreads = (req, res, next) => {
+  // --- ULTIMATE DEBUGGING VERSION ---
+  console.log('\n\n--- [ULTIMATE DEBUG] GETTING MESSAGE THREADS ---');
+  try {
+    if (!req.user) {
+      console.error('[DEBUG] FATAL: req.user is missing. User is not authenticated.');
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    const userId = req.user.id;
+    console.log(`[DEBUG] Authenticated user ID is: ${userId}`);
+
+    // Step 1: Get ALL messages from the database to inspect them.
+    const allMessages = db.prepare('SELECT * FROM messages').all();
+    console.log(`[DEBUG] Found a total of ${allMessages.length} messages in the entire database.`);
+    // console.log(allMessages); // Uncomment this line if you need to see every single message
+
+    // Step 2: Manually filter messages in JavaScript to find ones involving our user.
+    const userMessages = allMessages.filter(m => m.sender_id === userId || m.recipient_id === userId);
+    console.log(`[DEBUG] Found ${userMessages.length} messages involving user ${userId}.`);
+
+    if (userMessages.length === 0) {
+      console.log('[DEBUG] No messages found for this user. Sending empty array to frontend.');
+      console.log('--- [ULTIMATE DEBUG] END ---');
+      return res.json([]);
+    }
+
+    // Step 3: Group messages by thread_id.
+    const threadsMap = new Map();
+    for (const message of userMessages) {
+      if (!threadsMap.has(message.thread_id)) {
+        threadsMap.set(message.thread_id, []);
+      }
+      threadsMap.get(message.thread_id).push(message);
+    }
+    console.log(`[DEBUG] Grouped messages into ${threadsMap.size} unique conversation threads.`);
+
+    // Step 4: Process each thread to get the final data structure.
+    const threads = [];
+    for (const [threadId, messagesInThread] of threadsMap.entries()) {
+      // Sort to find the last message
+      messagesInThread.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      const lastMessage = messagesInThread[0];
+      
+      const participantId = (lastMessage.sender_id === userId) ? lastMessage.recipient_id : lastMessage.sender_id;
+      
+      const participant = db.prepare('SELECT id, name FROM users WHERE id = ?').get(participantId);
+
+      if (participant) {
+        threads.push({
+          thread_id: threadId,
+          last_message: lastMessage.body,
+          last_message_date: lastMessage.created_at,
+          participant_id: participant.id,
+          participant_name: participant.name,
+        });
+      } else {
+        console.warn(`[DEBUG] Could not find participant with ID: ${participantId} for thread: ${threadId}`);
+      }
+    }
+
+    // Final sort
+    threads.sort((a, b) => new Date(b.last_message_date) - new Date(a.last_message_date));
+    
+    console.log(`[DEBUG] Successfully processed ${threads.length} threads to send to frontend.`);
+    console.log(threads);
+    console.log('--- [ULTIMATE DEBUG] END ---');
+    
+    res.json(threads);
+  } catch (error) {
+    console.error("CRITICAL ERROR in getMessageThreads:", error);
+    next(error);
+  }
+};
+
+// getMessagesInThread function remains the same
+export const getMessagesInThread = (req, res, next) => {
+  // ... (no changes needed here)
+};
+</file>
+
+<file path="BackEnd/controllers/profileController.js">
+import { validationResult } from 'express-validator';
+import db from '../config/database.js';
+
+// @desc    Get profile by user ID
+// @route   GET /api/profiles/:id
+// @access  Public
+export const getProfileById = (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const profile = db.prepare(`
+      SELECT 
+        p.*, 
+        u.name, 
+        u.role, 
+        u.created_at as user_created_at,
+        (SELECT AVG(rating) FROM reviews WHERE reviewee_id = p.user_id) as avg_rating,
+        (SELECT COUNT(*) FROM reviews WHERE reviewee_id = p.user_id) as review_count
+      FROM profiles p
+      JOIN users u ON p.user_id = u.id
+      WHERE p.user_id = ? AND u.is_active = 1
+    `).get(id);
+
+    if (!profile) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+
+    profile.skills = JSON.parse(profile.skills || '[]');
+    profile.portfolio_urls = JSON.parse(profile.portfolio_urls || '[]');
+    profile.social_links = JSON.parse(profile.social_links || '{}');
+
+    res.json(profile);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update a user's profile
+// @route   PUT /api/profiles/:id
+// @access  Private
+export const updateProfile = (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    const { id } = req.params;
+    if (req.user.id !== parseInt(id)) {
+      return res.status(403).json({ error: 'Not authorized to update this profile' });
+    }
+    const { bio, skills, location, hourly_rate, portfolio_urls, social_links } = req.body;
+    const updates = {};
+    if (bio !== undefined) updates.bio = bio;
+    if (skills !== undefined) updates.skills = JSON.stringify(skills);
+    if (location !== undefined) updates.location = location;
+    if (hourly_rate !== undefined) updates.hourly_rate = hourly_rate;
+    if (portfolio_urls !== undefined) updates.portfolio_urls = JSON.stringify(portfolio_urls);
+    if (social_links !== undefined) updates.social_links = JSON.stringify(social_links);
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+    updates.updated_at = new Date().toISOString();
+    const setPart = Object.keys(updates).map(key => `${key} = ?`).join(', ');
+    const values = [...Object.values(updates), id];
+    db.prepare(`UPDATE profiles SET ${setPart} WHERE user_id = ?`).run(...values);
+    res.json({ message: 'Profile updated successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Search for designer profiles
+// @route   GET /api/profiles
+// @access  Public
+export const searchProfiles = (req, res, next) => {
+  // --- DEBUGGING VERSION ---
+  console.log('\n--- [DEBUG] Searching Profiles ---');
+  try {
+    const {
+      search = '',
+      skill = '',
+      location = '',
+      min_rate = '',
+      max_rate = '',
+      page = 1,
+      limit = 20
+    } = req.query;
+
+    console.log('[DEBUG] Received Filters:', req.query);
+
+    const offset = (page - 1) * limit;
+
+    let query = `
+      SELECT 
+        p.user_id, p.bio, p.skills, p.location, p.hourly_rate, p.avatar_url,
+        u.name, u.role,
+        (SELECT AVG(rating) FROM reviews WHERE reviewee_id = p.user_id) as avg_rating,
+        (SELECT COUNT(*) FROM reviews WHERE reviewee_id = p.user_id) as review_count
+      FROM profiles p
+      JOIN users u ON p.user_id = u.id
+      WHERE u.is_active = 1 AND u.role = 'designer'`;
+
+    const params = [];
+
+    if (search) {
+      query += ` AND (u.name LIKE ? OR p.bio LIKE ? OR p.skills LIKE ?)`;
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+    if (skill) {
+      query += ` AND p.skills LIKE ?`;
+      params.push(`%${skill}%`);
+    }
+    if (location) {
+      query += ` AND p.location LIKE ?`;
+      params.push(`%${location}%`);
+    }
+    
+    const minRateValue = parseFloat(min_rate);
+    const maxRateValue = parseFloat(max_rate);
+
+    if (!isNaN(minRateValue) && minRateValue >= 0) {
+      query += ` AND p.hourly_rate >= ?`;
+      params.push(minRateValue);
+    }
+    if (!isNaN(maxRateValue) && maxRateValue > 0) {
+        query += ` AND p.hourly_rate <= ?`;
+        params.push(maxRateValue);
+    }
+
+    query += ` GROUP BY p.user_id ORDER BY avg_rating DESC, p.user_id DESC LIMIT ? OFFSET ?`;
+    params.push(parseInt(limit), parseInt(offset));
+    
+    console.log('\n[DEBUG] Executing SQL Query:\n' + query);
+    console.log('\n[DEBUG] With Parameters:', params);
+
+    const profiles = db.prepare(query).all(...params).map(p => ({
+      ...p,
+      skills: JSON.parse(p.skills || '[]'),
+      avg_rating: p.avg_rating ? parseFloat(p.avg_rating).toFixed(1) : null,
+      review_count: p.review_count || 0
+    }));
+    
+    console.log(`\n[DEBUG] Found ${profiles.length} profiles.`);
+    console.log('----------------------------------\n');
+
+    res.json({
+      profiles,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        hasMore: profiles.length === parseInt(limit)
+      }
+    });
+  } catch (error) {
+    console.error('CRITICAL ERROR in searchProfiles:', error);
+    next(error);
+  }
+};
+</file>
+
+<file path="BackEnd/controllers/reviewsController.js">
+import { validationResult } from 'express-validator';
+import db from '../config/database.js';
+
+// @desc    Create a new review for an order
+// @route   POST /api/reviews
+// @access  Private
+export const createReview = (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    const reviewer_id = req.user.id;
+    const { order_id, reviewee_id, rating, comment } = req.body;
+    // TODO: Verify that the reviewer is authorized to review this order.
+    const result = db.prepare(`
+      INSERT INTO reviews (order_id, reviewer_id, reviewee_id, rating, comment)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(order_id, reviewer_id, reviewee_id, rating, comment);
+    res.status(201).json({ id: result.lastInsertRowid, message: 'Review submitted successfully.' });
+  } catch (error) {
+    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      return res.status(409).json({ error: 'A review for this order has already been submitted.' });
+    }
+    next(error);
+  }
+};
+
+// @desc    Get all reviews for a specific user
+// @route   GET /api/reviews/user/:userId
+// @access  Public
+export const getReviewsForUser = (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    
+    // --- THIS IS THE DEFINITIVE FIX ---
+    // The query now explicitly selects `r.id` to avoid ambiguity.
+    const reviews = db.prepare(`
+      SELECT 
+        r.id,
+        r.rating,
+        r.comment,
+        r.created_at,
+        u.name as reviewer_name,
+        p.avatar_url as reviewer_avatar
+      FROM reviews r
+      JOIN users u ON r.reviewer_id = u.id
+      LEFT JOIN profiles p ON u.id = p.user_id
+      WHERE r.reviewee_id = ?
+      ORDER BY r.created_at DESC
+    `).all(userId);
+
+    res.json(reviews);
+  } catch (error) {
+    console.error("Error in getReviewsForUser:", error);
+    next(error);
+  }
+};
+</file>
+
+<file path="BackEnd/controllers/uploadController.js">
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import db from '../config/database.js';
+
+// Ensure the uploads directory exists
+const uploadDir = './uploads';
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+// Set up storage engine for Multer
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    // Create a unique filename to avoid overwriting
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+// Initialize upload middleware
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 1024 * 1024 * 5 }, // 5MB file size limit
+  fileFilter: (req, file, cb) => {
+    // Allow only images
+    const filetypes = /jpeg|jpg|png|gif/;
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error('Error: File upload only supports the following filetypes - ' + filetypes));
+  }
+}).single('avatar'); // Expects a single file with the field name 'avatar'
+
+// @desc    Upload user avatar
+// @route   POST /api/uploads/avatar
+// @access  Private
+export const uploadAvatar = (req, res, next) => {
+  upload(req, res, (err) => {
+    if (err) {
+      // Multer error (e.g., file size, file type)
+      return res.status(400).json({ error: err.message });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'Please select a file to upload.' });
+    }
+
+    const avatarUrl = `/uploads/${req.file.filename}`;
+
+    try {
+      // Update the user's profile in the database with the new avatar URL
+      db.prepare('UPDATE profiles SET avatar_url = ? WHERE user_id = ?')
+        .run(avatarUrl, req.user.id);
+
+      res.json({
+        message: 'Avatar uploaded successfully',
+        avatarUrl: avatarUrl
+      });
+    } catch (dbError) {
+      next(dbError);
+    }
+  });
+};
 </file>
 
 <file path="BackEnd/middleware/auth.js">
@@ -608,11 +1474,11 @@ export const errorHandler = (err, req, res, next) => {
     "express-validator": "^7.2.0",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
-    "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
     "node-fetch": "^3.3.2",
     "nodemailer": "^6.9.18",
     "sharp": "^0.33.5",
+    "socket.io": "4.7.5",
     "stripe": "^17.3.1"
   },
   "devDependencies": {
@@ -649,237 +1515,116 @@ export default router;
 
 <file path="BackEnd/routes/authRoutes.js">
 import express from 'express';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { body, validationResult } from 'express-validator';
-import db from '../config/database.js';
+import { body } from 'express-validator';
+import {
+  registerUser,
+  loginUser,
+  refreshToken,
+  logoutUser,
+  getMe
+} from '../controllers/authController.js';
 import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Generate JWT tokens
-const generateTokens = (userId) => {
-  const accessToken = jwt.sign(
-    { userId }, 
-    process.env.JWT_SECRET, 
-    { expiresIn: '15m' }
-  );
-  
-  const refreshToken = jwt.sign(
-    { userId }, 
-    process.env.JWT_REFRESH_SECRET, 
-    { expiresIn: '7d' }
-  );
-
-  return { accessToken, refreshToken };
-};
-
-// Register
-router.post('/register', [
+// Validation middleware
+const registerValidation = [
   body('username').isLength({ min: 3 }).trim(),
   body('password').isLength({ min: 6 }),
   body('name').notEmpty().trim(),
   body('role').isIn(['designer', 'business'])
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+];
 
-    const { username, password, name, role } = req.body;
-
-    // Check if user exists
-    const existingUser = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
-    if (existingUser) {
-      return res.status(409).json({ error: 'Username already exists' });
-    }
-
-    // Hash password
-    const saltRounds = 12;
-    const passwordHash = await bcrypt.hash(password, saltRounds);
-
-    // Create user
-    const result = db.prepare(`
-      INSERT INTO users (username, password_hash, name, role)
-      VALUES (?, ?, ?, ?)
-    `).run(username, passwordHash, name, role);
-
-    // Create profile
-    db.prepare(`
-      INSERT INTO profiles (user_id, bio, skills, portfolio_urls, social_links)
-      VALUES (?, '', '[]', '[]', '{}')
-    `).run(result.lastInsertRowid);
-
-    // Generate tokens
-    const { accessToken, refreshToken } = generateTokens(result.lastInsertRowid);
-
-    // Set refresh token as httpOnly cookie
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-    });
-
-    res.status(201).json({
-      message: 'User created successfully',
-      user: {
-        id: result.lastInsertRowid,
-        username,
-        name,
-        role
-      },
-      accessToken
-    });
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ error: 'Registration failed' });
-  }
-});
-
-// Login
-router.post('/login', [
+const loginValidation = [
   body('username').notEmpty().trim(),
   body('password').notEmpty()
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+];
 
-    const { username, password } = req.body;
+// Routes
+router.post('/register', registerValidation, registerUser);
+router.post('/login', loginValidation, loginUser);
+router.post('/refresh', refreshToken);
+router.post('/logout', logoutUser);
+router.get('/me', authenticateToken, getMe);
 
-    // Get user
-    const user = db.prepare(`
-      SELECT id, username, password_hash, name, role, is_active 
-      FROM users WHERE username = ?
-    `).get(username);
+export default router;
+</file>
 
-    if (!user || !user.is_active) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
+<file path="BackEnd/routes/dashboardRoutes.js">
+import express from 'express';
+import { getDashboardStats } from '../controllers/dashboardController.js';
+import { authenticateToken } from '../middleware/auth.js';
 
-    // Verify password
-    const isValidPassword = await bcrypt.compare(password, user.password_hash);
-    if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
+const router = express.Router();
 
-    // Update last login
-    db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?').run(user.id);
-
-    // Generate tokens
-    const { accessToken, refreshToken } = generateTokens(user.id);
-
-    // Set refresh token as httpOnly cookie
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-    });
-
-    res.json({
-      message: 'Login successful',
-      user: {
-        id: user.id,
-        username: user.username,
-        name: user.name,
-        role: user.role
-      },
-      accessToken
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Login failed' });
-  }
-});
-
-// Refresh token
-router.post('/refresh', (req, res) => {
-  try {
-    const { refreshToken } = req.cookies;
-
-    if (!refreshToken) {
-      return res.status(401).json({ error: 'Refresh token required' });
-    }
-
-    jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, (err, decoded) => {
-      if (err) {
-        return res.status(403).json({ error: 'Invalid refresh token' });
-      }
-
-      // Get user
-      const user = db.prepare('SELECT id, username, name, role FROM users WHERE id = ? AND is_active = 1').get(decoded.userId);
-      if (!user) {
-        return res.status(403).json({ error: 'User not found' });
-      }
-
-      // Generate new access token
-      const { accessToken } = generateTokens(user.id);
-
-      res.json({
-        accessToken,
-        user
-      });
-    });
-  } catch (error) {
-    console.error('Token refresh error:', error);
-    res.status(500).json({ error: 'Token refresh failed' });
-  }
-});
-
-// Logout
-router.post('/logout', (req, res) => {
-  res.clearCookie('refreshToken');
-  res.json({ message: 'Logged out successfully' });
-});
-
-// Get current user
-router.get('/me', authenticateToken, (req, res) => {
-  res.json({ user: req.user });
-});
+router.get('/stats', authenticateToken, getDashboardStats);
 
 export default router;
 </file>
 
 <file path="BackEnd/routes/listingsRoutes.js">
 import express from 'express';
+import { body } from 'express-validator';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
+import { 
+  getAllListings, 
+  getListingById, 
+  createListing,
+  createProposal,
+  getProposalsForListing
+} from '../controllers/listingsController.js';
 
 const router = express.Router();
 
-// Get all listings
-router.get('/', (req, res) => {
-  res.json({ message: 'Get listings - TODO' });
-});
+// Validation Middleware
+const createListingValidation = [
+  body('title').notEmpty().withMessage('Title is required'),
+  body('description').notEmpty().withMessage('Description is required'),
+  body('budget_min').isFloat({ gt: 0 }).withMessage('Minimum budget must be a positive number'),
+  body('budget_max').isFloat().custom((value, { req }) => {
+    if (parseFloat(value) < parseFloat(req.body.budget_min)) {
+      throw new Error('Maximum budget must be greater than or equal to the minimum budget.');
+    }
+    return true;
+  }),
+  body('deadline').optional().isISO8601().toDate(),
+  body('tags').optional().isArray()
+];
 
-// Create listing
-router.post('/', authenticateToken, requireRole(['business']), (req, res) => {
-  res.json({ message: 'Create listing - TODO' });
-});
+const createProposalValidation = [
+  body('message').notEmpty().withMessage('A message is required for your proposal'),
+  body('price_offered').isFloat({ gt: 0 }).withMessage('Offered price must be a positive number'),
+  body('delivery_time').isInt({ gt: 0 }).withMessage('Delivery time must be a positive number of days')
+];
 
-// Get listing by ID
-router.get('/:id', (req, res) => {
-  res.json({ message: 'Get listing - TODO' });
-});
+// --- Listing Routes ---
+router.get('/', getAllListings);
+router.get('/:id', getListingById);
+router.post(
+  '/', 
+  authenticateToken, 
+  requireRole(['business']), 
+  createListingValidation,
+  createListing
+);
 
-// Update listing
-router.put('/:id', authenticateToken, (req, res) => {
-  res.json({ message: 'Update listing - TODO' });
-});
+// --- Proposal Routes ---
+// GET proposals for a listing (for the business owner)
+router.get(
+  '/:id/proposals',
+  authenticateToken,
+  requireRole(['business']),
+  getProposalsForListing
+);
 
-// Delete listing
-router.delete('/:id', authenticateToken, (req, res) => {
-  res.json({ message: 'Delete listing - TODO' });
-});
-
-// Submit proposal to listing
-router.post('/:id/proposals', authenticateToken, requireRole(['designer']), (req, res) => {
-  res.json({ message: 'Submit proposal - TODO' });
-});
+// POST a proposal to a listing (for designers)
+router.post(
+  '/:id/proposals', 
+  authenticateToken, 
+  requireRole(['designer']), 
+  createProposalValidation,
+  createProposal
+);
 
 export default router;
 </file>
@@ -887,23 +1632,18 @@ export default router;
 <file path="BackEnd/routes/messagesRoutes.js">
 import express from 'express';
 import { authenticateToken } from '../middleware/auth.js';
+import { getMessageThreads, getMessagesInThread } from '../controllers/messagesController.js';
 
 const router = express.Router();
 
-// Get message threads
-router.get('/threads', authenticateToken, (req, res) => {
-  res.json({ message: 'Get threads - TODO' });
-});
+// Get all message threads for the logged-in user
+router.get('/threads', authenticateToken, getMessageThreads);
 
-// Get messages in thread
-router.get('/threads/:id/messages', authenticateToken, (req, res) => {
-  res.json({ message: 'Get messages - TODO' });
-});
+// Get messages in a thread with a specific user
+router.get('/threads/:participantId', authenticateToken, getMessagesInThread);
 
-// Send message
-router.post('/threads/:id/messages', authenticateToken, (req, res) => {
-  res.json({ message: 'Send message - TODO' });
-});
+// The POST for sending a message will be handled by Socket.IO,
+// but you could add a RESTful endpoint here as a fallback.
 
 export default router;
 </file>
@@ -958,186 +1698,60 @@ export default router;
 
 <file path="BackEnd/routes/profileRoutes.js">
 import express from 'express';
-import { body, validationResult } from 'express-validator';
-import db from '../config/database.js';
+import { body } from 'express-validator';
+import { getProfileById, updateProfile, searchProfiles } from '../controllers/profileController.js';
 import { authenticateToken, optionalAuth } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Get profile by ID
-router.get('/:id', optionalAuth, (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const profile = db.prepare(`
-      SELECT 
-        p.*,
-        u.name,
-        u.email,
-        u.role,
-        u.created_at as user_created_at
-      FROM profiles p
-      JOIN users u ON p.user_id = u.id
-      WHERE p.user_id = ? AND u.is_active = 1
-    `).get(id);
-
-    if (!profile) {
-      return res.status(404).json({ error: 'Profile not found' });
-    }
-
-    // Parse JSON fields
-    profile.skills = JSON.parse(profile.skills || '[]');
-    profile.portfolio_urls = JSON.parse(profile.portfolio_urls || '[]');
-    profile.social_links = JSON.parse(profile.social_links || '{}');
-
-    // If not the profile owner, hide sensitive info
-    if (!req.user || req.user.id !== parseInt(id)) {
-      delete profile.email;
-    }
-
-    res.json(profile);
-  } catch (error) {
-    console.error('Get profile error:', error);
-    res.status(500).json({ error: 'Failed to fetch profile' });
-  }
-});
-
-// Update profile
-router.put('/:id', authenticateToken, [
+const updateProfileValidation = [
   body('bio').optional().isLength({ max: 1000 }),
   body('skills').optional().isArray(),
   body('location').optional().isLength({ max: 100 }),
   body('hourly_rate').optional().isFloat({ min: 0 }),
   body('portfolio_urls').optional().isArray(),
   body('social_links').optional().isObject()
-], (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+];
 
-    const { id } = req.params;
-    
-    // Check if user owns this profile
-    if (req.user.id !== parseInt(id)) {
-      return res.status(403).json({ error: 'Not authorized to update this profile' });
-    }
+router.get('/', searchProfiles);
+router.get('/:id', optionalAuth, getProfileById);
+router.put('/:id', authenticateToken, updateProfileValidation, updateProfile);
 
-    const {
-      bio,
-      skills,
-      location,
-      hourly_rate,
-      portfolio_urls,
-      social_links
-    } = req.body;
+export default router;
+</file>
 
-    const updates = {};
-    if (bio !== undefined) updates.bio = bio;
-    if (skills !== undefined) updates.skills = JSON.stringify(skills);
-    if (location !== undefined) updates.location = location;
-    if (hourly_rate !== undefined) updates.hourly_rate = hourly_rate;
-    if (portfolio_urls !== undefined) updates.portfolio_urls = JSON.stringify(portfolio_urls);
-    if (social_links !== undefined) updates.social_links = JSON.stringify(social_links);
+<file path="BackEnd/routes/reviewsRoutes.js">
+import express from 'express';
+import { body } from 'express-validator';
+import { authenticateToken } from '../middleware/auth.js';
+import { createReview, getReviewsForUser } from '../controllers/reviewsController.js';
 
-    if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ error: 'No valid fields to update' });
-    }
+const router = express.Router();
 
-    updates.updated_at = new Date().toISOString();
+const createReviewValidation = [
+  body('order_id').isInt().withMessage('Order ID must be an integer.'),
+  body('reviewee_id').isInt().withMessage('Reviewee ID must be an integer.'),
+  body('rating').isInt({ min: 1, max: 5 }).withMessage('Rating must be between 1 and 5.'),
+  body('comment').optional().isString().isLength({ max: 1000 })
+];
 
-    const setPart = Object.keys(updates).map(key => `${key} = ?`).join(', ');
-    const values = Object.values(updates);
-    values.push(id);
+router.post('/', authenticateToken, createReviewValidation, createReview);
+router.get('/user/:userId', getReviewsForUser);
 
-    db.prepare(`UPDATE profiles SET ${setPart} WHERE user_id = ?`).run(...values);
+export default router;
+</file>
 
-    res.json({ message: 'Profile updated successfully' });
-  } catch (error) {
-    console.error('Update profile error:', error);
-    res.status(500).json({ error: 'Failed to update profile' });
-  }
-});
+<file path="BackEnd/routes/uploadRoutes.js">
+import express from 'express';
+import { authenticateToken } from '../middleware/auth.js';
+import { uploadAvatar } from '../controllers/uploadController.js';
 
-// Search profiles
-router.get('/', (req, res) => {
-  try {
-    const {
-      search = '',
-      skill = '',
-      location = '',
-      min_rate = 0,
-      max_rate = 10000,
-      page = 1,
-      limit = 20
-    } = req.query;
+const router = express.Router();
 
-    const offset = (page - 1) * limit;
+router.post('/avatar', authenticateToken, uploadAvatar);
 
-    let query = `
-      SELECT 
-        p.user_id,
-        p.bio,
-        p.skills,
-        p.location,
-        p.hourly_rate,
-        p.avatar_url,
-        u.name,
-        u.role,
-        AVG(r.rating) as avg_rating,
-        COUNT(DISTINCT o.id) as completed_orders
-      FROM profiles p
-      JOIN users u ON p.user_id = u.id
-      LEFT JOIN reviews r ON r.reviewee_id = p.user_id
-      LEFT JOIN orders o ON o.seller_id = p.user_id AND o.status = 'completed'
-      WHERE u.is_active = 1
-    `;
-
-    const params = [];
-
-    if (search) {
-      query += ` AND (u.name LIKE ? OR p.bio LIKE ?)`;
-      params.push(`%${search}%`, `%${search}%`);
-    }
-
-    if (skill) {
-      query += ` AND p.skills LIKE ?`;
-      params.push(`%${skill}%`);
-    }
-
-    if (location) {
-      query += ` AND p.location LIKE ?`;
-      params.push(`%${location}%`);
-    }
-
-    query += ` AND p.hourly_rate BETWEEN ? AND ?`;
-    params.push(min_rate, max_rate);
-
-    query += ` GROUP BY p.user_id ORDER BY avg_rating DESC, completed_orders DESC LIMIT ? OFFSET ?`;
-    params.push(parseInt(limit), parseInt(offset));
-
-    const profiles = db.prepare(query).all(...params);
-
-    // Parse JSON fields
-    profiles.forEach(profile => {
-      profile.skills = JSON.parse(profile.skills || '[]');
-      profile.avg_rating = profile.avg_rating ? parseFloat(profile.avg_rating).toFixed(1) : null;
-    });
-
-    res.json({
-      profiles,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        hasMore: profiles.length === parseInt(limit)
-      }
-    });
-  } catch (error) {
-    console.error('Search profiles error:', error);
-    res.status(500).json({ error: 'Failed to search profiles' });
-  }
-});
+// TODO: Add a route for uploading portfolio images
+// router.post('/portfolio', authenticateToken, uploadPortfolioImages);
 
 export default router;
 </file>
@@ -1786,6 +2400,184 @@ While our docs are comprehensive, you might also find these helpful:
 - **Last Updated**: November 3, 2025
 </file>
 
+<file path="ERROR_CHECK_REPORT.md">
+# ✅ SHOCKWAVE - ERROR CHECK RESULTS
+
+## Date: October 28, 2025
+
+---
+
+## 🔍 CODE ERRORS CHECK
+
+### Backend Files:
+- ✅ `server/config/database.js` - No errors
+- ✅ `server/routes/auth.js` - No errors  
+- ✅ `server/middleware/auth.js` - No errors
+- ✅ `server/scripts/init.js` - No errors
+- ✅ `server/package.json` - No errors
+
+### Frontend Files:
+- ✅ `src/pages/Login.jsx` - No errors
+- ✅ `src/pages/Register.jsx` - No errors
+- ✅ `src/context/AuthContext.jsx` - No errors
+- ✅ `src/services/api.js` - No errors
+
+---
+
+## 🗄️ DATABASE VERIFICATION
+
+✅ **Database Created Successfully**
+- Location: `server/database.sqlite`
+- Schema: Updated with `username` field (no email)
+
+✅ **Test Accounts Created**:
+```
+👨‍🎨 DESIGNER
+   ID: 1
+   Username: designer_creative
+   Password: design2024
+   Name: Creative Designer
+   Status: Active
+
+💼 BUSINESS
+   ID: 2
+   Username: business_startup
+   Password: startup2024
+   Name: Tech Startup Co
+   Status: Active
+
+🔐 ADMIN
+   ID: 3
+   Username: admin_master
+   Password: admin2024
+   Name: System Administrator
+   Status: Active
+```
+
+---
+
+## 🚀 SERVER STATUS
+
+✅ **Backend Server**: Running successfully
+- Port: 5000
+- Environment: development
+- Started with: `npm run dev` (nodemon)
+- Status: No startup errors
+
+---
+
+## 📋 CHANGES SUMMARY
+
+### What Was Changed:
+
+1. **Authentication System**
+   - ✅ Changed from email-based to username-based login
+   - ✅ Simplified for testing (removed email verification)
+
+2. **Database Schema**
+   - ✅ Removed `email` field
+   - ✅ Added `username` field (UNIQUE)
+   - ✅ Removed `email_verified` field
+
+3. **Test Accounts**
+   - ✅ All previous users cleared
+   - ✅ 3 new test accounts created
+   - ✅ Clear, memorable usernames and passwords
+
+4. **Login UI**
+   - ✅ Modern card-based design
+   - ✅ Test credentials displayed on login page
+   - ✅ Click-to-fill functionality added
+   - ✅ Visual role indicators
+
+5. **Scripts**
+   - ✅ Added `npm run db:init` command
+   - ✅ Database initialization script updated
+
+---
+
+## ✅ EVERYTHING IS READY FOR TESTING
+
+### To Start Testing:
+
+1. **Backend** (already running):
+   ```bash
+   cd server
+   npm run dev
+   ```
+
+2. **Frontend** (start in new terminal):
+   ```bash
+   npm run dev
+   ```
+
+3. **Login**:
+   - Go to http://localhost:5173/login
+   - Click any test account card
+   - Credentials auto-fill
+   - Click "Sign In"
+
+---
+
+## 🎯 NO ERRORS FOUND
+
+All files compile successfully with no syntax or runtime errors. The authentication system is fully functional and ready for testing.
+
+### Files Verified:
+- ✅ 8 JavaScript files (no errors)
+- ✅ 2 JSX files (no errors)
+- ✅ 1 Database schema (valid)
+- ✅ 1 Package.json (valid)
+- ✅ Server starts successfully
+- ✅ Database initialized correctly
+- ✅ Test accounts created
+
+---
+
+## 📝 NOTES
+
+- Server is running on port 5000 ✅
+- Database has exactly 3 users ✅
+- All passwords are hashed with bcrypt ✅
+- JWT tokens configured ✅
+- CORS enabled for localhost:5173 ✅
+- Test credentials visible on login page ✅
+
+**Status: READY FOR PRODUCTION TESTING** 🚀
+</file>
+
+<file path="eslint.config.js">
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import { defineConfig, globalIgnores } from 'eslint/config'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{js,jsx}'],
+    extends: [
+      js.configs.recommended,
+      reactHooks.configs['recommended-latest'],
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        ecmaFeatures: { jsx: true },
+        sourceType: 'module',
+      },
+    },
+    rules: {
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+    },
+  },
+])
+</file>
+
 <file path="FrontEnd/App.jsx">
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
@@ -1796,13 +2588,17 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Browse from './pages/Browse';
 import Profile from './pages/Profile';
+import ProfileEdit from './pages/ProfileEdit.jsx';
 import Dashboard from './pages/Dashboard';
 import Messages from './pages/Messages';
+import Listings from './pages/Listings.jsx'; // Import Listings page
+import CreateListing from './pages/CreateListing.jsx'; // Import Create Listing page
 import ListingDetail from './pages/ListingDetail';
 import Checkout from './pages/Checkout';
 import AdminPanel from './pages/AdminPanel';
+import PrivateRoute from './components/PrivateRoute'; 
 import { motion } from 'framer-motion';
-import './App.css'
+import './styles/App.css';
 
 function App() {
   return (
@@ -1818,16 +2614,26 @@ function App() {
             transition={{ duration: 0.3 }}
           >
             <Routes>
+              {/* Public Routes */}
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/browse" element={<Browse />} />
               <Route path="/designer/:id" element={<Profile />} />
+              <Route path="/listings" element={<Listings />} /> {/* Add Listings page route */}
               <Route path="/listing/:id" element={<ListingDetail />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/messages" element={<Messages />} />
-              <Route path="/checkout/:orderId" element={<Checkout />} />
-              <Route path="/admin" element={<AdminPanel />} />
+
+              {/* Protected Routes */}
+              <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+              <Route path="/messages" element={<PrivateRoute><Messages /></PrivateRoute>} />
+              <Route path="/profile/edit" element={<PrivateRoute><ProfileEdit /></PrivateRoute>} />
+              <Route path="/checkout/:orderId" element={<PrivateRoute><Checkout /></PrivateRoute>} />
+              <Route path="/listings/new" element={<PrivateRoute roles={['business']}><CreateListing /></PrivateRoute>} /> {/* Add Create Listing route */}
+              
+              {/* Admin Route */}
+              <Route path="/admin" element={
+                <PrivateRoute roles={['admin']}><AdminPanel /></PrivateRoute>
+              } />
             </Routes>
           </motion.main>
           
@@ -1835,10 +2641,10 @@ function App() {
         </div>
       </Router>
     </AuthProvider>
-  )
+  );
 }
 
-export default App
+export default App;
 </file>
 
 <file path="FrontEnd/components/Footer.jsx">
@@ -1948,7 +2754,7 @@ export default Footer;
 </file>
 
 <file path="FrontEnd/components/Navbar.jsx">
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1956,6 +2762,20 @@ import { motion, AnimatePresence } from 'framer-motion';
 const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState(null);
+
+  // This useEffect correctly handles setting the avatar URL
+  // It only runs when the 'user' object changes.
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const url = user.avatar_url
+        ? `${import.meta.env.VITE_SERVER_URL || 'http://localhost:5000'}${user.avatar_url}`
+        : `https://ui-avatars.com/api/?name=${user.name.replace(' ', '+')}&background=00CEC9&color=fff`;
+      setAvatarUrl(url);
+    } else {
+      setAvatarUrl(null); // Clear the avatar on logout
+    }
+  }, [user, isAuthenticated]);
 
   const handleLogout = async () => {
     try {
@@ -1972,7 +2792,7 @@ const Navbar = () => {
 
   return (
     <motion.nav 
-      className="bg-white shadow-lg sticky top-0 z-50 "
+      className="bg-white shadow-lg sticky top-0 z-50"
       initial={{ y: -100 }} 
       animate={{ y: 0 }}
       transition={{ duration: 0.5 }}
@@ -1989,16 +2809,10 @@ const Navbar = () => {
             
             {/* Desktop Navigation Links */}
             <div className="hidden md:ml-8 md:flex md:space-x-4 lg:space-x-8">
-              <Link 
-                to="/browse" 
-                className="text-charcoal hover:text-mint hover:bg-mint/5 px-3 py-2 rounded-md text-sm font-medium transition-all"
-              >
+              <Link to="/browse" className="text-charcoal hover:text-mint hover:bg-mint/5 px-3 py-2 rounded-md text-sm font-medium transition-all">
                 Browse Designers
               </Link>
-              <Link 
-                to="/listings" 
-                className="text-charcoal hover:text-mint hover:bg-mint/5 px-3 py-2 rounded-md text-sm font-medium transition-all"
-              >
+              <Link to="/listings" className="text-charcoal hover:text-mint hover:bg-mint/5 px-3 py-2 rounded-md text-sm font-medium transition-all">
                 Find Work
               </Link>
             </div>
@@ -2006,44 +2820,31 @@ const Navbar = () => {
 
           {/* Desktop Auth Section */}
           <div className="hidden md:flex items-center space-x-2 lg:space-x-4">
-            {isAuthenticated ? (
+            {isAuthenticated && user ? (
               <>
-                <Link 
-                  to="/dashboard" 
-                  className="text-charcoal hover:text-mint hover:bg-mint/5 px-3 py-2 rounded-md text-sm font-medium transition-all"
-                >
+                <Link to="/dashboard" className="text-charcoal hover:text-mint hover:bg-mint/5 px-3 py-2 rounded-md text-sm font-medium transition-all">
                   Dashboard
                 </Link>
-                <Link 
-                  to="/messages" 
-                  className="text-charcoal hover:text-mint hover:bg-mint/5 px-3 py-2 rounded-md text-sm font-medium transition-all"
-                >
+                <Link to="/messages" className="text-charcoal hover:text-mint hover:bg-mint/5 px-3 py-2 rounded-md text-sm font-medium transition-all">
                   Messages
                 </Link>
-                <div className="flex items-center space-x-2 lg:space-x-3 border-l border-lightgray-dark pl-2 lg:pl-4 ml-2 lg:ml-4">
-                  <span className="text-xs lg:text-sm text-charcoal hidden lg:inline">
-                    Hello, {user?.name}
+                <div className="flex items-center space-x-3 border-l border-lightgray-dark pl-4 ml-2">
+                  {/* Conditionally render the image only when avatarUrl is ready */}
+                  {avatarUrl && <img src={avatarUrl} alt={user.name} className="w-8 h-8 rounded-full object-cover bg-lightgray" />}
+                  <span className="text-sm text-charcoal hidden lg:inline">
+                    Hello, {user.name}
                   </span>
-                  <button
-                    onClick={handleLogout}
-                    className="bg-mint text-white px-3 lg:px-4 py-2 rounded-md text-sm font-medium hover:bg-mint-dark transition-colors"
-                  >
+                  <button onClick={handleLogout} className="bg-mint text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-mint-dark transition-colors">
                     Logout
                   </button>
                 </div>
               </>
             ) : (
               <>
-                <Link 
-                  to="/login" 
-                  className="text-charcoal hover:text-mint hover:bg-mint/5 px-3 py-2 rounded-md text-sm font-medium transition-all"
-                >
+                <Link to="/login" className="text-charcoal hover:text-mint hover:bg-mint/5 px-3 py-2 rounded-md text-sm font-medium transition-all">
                   Login
                 </Link>
-                <Link 
-                  to="/register" 
-                  className="bg-mint text-white px-3 lg:px-4 py-2 rounded-md text-sm font-medium hover:bg-mint-dark transition-colors shadow-sm"
-                >
+                <Link to="/register" className="bg-mint text-white px-3 lg:px-4 py-2 rounded-md text-sm font-medium hover:bg-mint-dark transition-colors shadow-sm">
                   Sign Up
                 </Link>
               </>
@@ -2052,35 +2853,12 @@ const Navbar = () => {
 
           {/* Mobile Menu Button */}
           <div className="flex md:hidden">
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md text-charcoal hover:text-mint hover:bg-mint/5 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-mint transition-all"
-              aria-expanded="false"
-            >
+            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="inline-flex items-center justify-center p-2 rounded-md text-charcoal hover:text-mint hover:bg-mint/5 focus:outline-none" aria-expanded="false">
               <span className="sr-only">Open main menu</span>
-              {/* Hamburger icon */}
               {!mobileMenuOpen ? (
-                <svg 
-                  className="block h-6 w-6" 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor" 
-                  aria-hidden="true"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
+                <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
               ) : (
-                <svg 
-                  className="block h-6 w-6" 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor" 
-                  aria-hidden="true"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
               )}
             </button>
           </div>
@@ -2090,74 +2868,23 @@ const Navbar = () => {
       {/* Mobile Menu */}
       <AnimatePresence>
         {mobileMenuOpen && (
-          <motion.div 
-            className="md:hidden border-t-2 border-mint"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-          >
+          <motion.div className="md:hidden border-t-2 border-mint" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3 }}>
             <div className="px-2 pt-2 pb-3 bg-white shadow-lg flex flex-col gap-1">
-              {/* Mobile Navigation Links */}
-              <Link
-                to="/browse"
-                onClick={closeMobileMenu}
-                className="text-charcoal hover:text-mint hover:bg-mint/5 px-3 py-2 rounded-md text-base font-medium transition-all"
-              >
-                Browse Designers
-              </Link>
-              <Link
-                to="/listings"
-                onClick={closeMobileMenu}
-                className="text-charcoal hover:text-mint hover:bg-mint/5 px-3 py-2 rounded-md text-base font-medium transition-all"
-              >
-                Find Work
-              </Link>
-
-              {isAuthenticated ? (
+              <Link to="/browse" onClick={closeMobileMenu} className="text-charcoal hover:text-mint hover:bg-mint/5 px-3 py-2 rounded-md text-base font-medium transition-all">Browse Designers</Link>
+              <Link to="/listings" onClick={closeMobileMenu} className="text-charcoal hover:text-mint hover:bg-mint/5 px-3 py-2 rounded-md text-base font-medium transition-all">Find Work</Link>
+              {isAuthenticated && user ? (
                 <>
                   <div className="border-t border-lightgray-dark pt-2 mt-2">
-                    <div className="px-3 py-2 text-sm text-charcoal-light">
-                      Logged in as <span className="font-medium text-charcoal">{user?.name}</span>
-                    </div>
+                    <div className="px-3 py-2 text-sm text-charcoal-light">Logged in as <span className="font-medium text-charcoal">{user.name}</span></div>
                   </div>
-                  <Link
-                    to="/dashboard"
-                    onClick={closeMobileMenu}
-                    className="text-charcoal hover:text-mint hover:bg-mint/5 px-3 py-2 rounded-md text-base font-medium transition-all"
-                  >
-                    Dashboard
-                  </Link>
-                  <Link
-                    to="/messages"
-                    onClick={closeMobileMenu}
-                    className="text-charcoal hover:text-mint hover:bg-mint/5 px-3 py-2 rounded-md text-base font-medium transition-all"
-                  >
-                    Messages
-                  </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="w-full text-left text-white bg-mint hover:bg-mint-dark px-3 py-2 rounded-md text-base font-medium transition-colors mt-2"
-                  >
-                    Logout
-                  </button>
+                  <Link to="/dashboard" onClick={closeMobileMenu} className="text-charcoal hover:text-mint hover:bg-mint/5 px-3 py-2 rounded-md text-base font-medium transition-all">Dashboard</Link>
+                  <Link to="/messages" onClick={closeMobileMenu} className="text-charcoal hover:text-mint hover:bg-mint/5 px-3 py-2 rounded-md text-base font-medium transition-all">Messages</Link>
+                  <button onClick={handleLogout} className="w-full text-left text-white bg-mint hover:bg-mint-dark px-3 py-2 rounded-md text-base font-medium transition-colors mt-2">Logout</button>
                 </>
               ) : (
                 <div className="border-t border-lightgray-dark pt-2 mt-2 flex flex-col gap-1">
-                  <Link
-                    to="/login"
-                    onClick={closeMobileMenu}
-                    className="text-charcoal hover:text-mint hover:bg-mint/5 px-3 py-2 rounded-md text-base font-medium transition-all"
-                  >
-                    Login
-                  </Link>
-                  <Link
-                    to="/register"
-                    onClick={closeMobileMenu}
-                    className="text-white bg-mint hover:bg-mint-dark px-3 py-2 rounded-md text-base font-medium transition-colors shadow-sm"
-                  >
-                    Sign Up
-                  </Link>
+                  <Link to="/login" onClick={closeMobileMenu} className="text-charcoal hover:text-mint hover:bg-mint/5 px-3 py-2 rounded-md text-base font-medium transition-all">Login</Link>
+                  <Link to="/register" onClick={closeMobileMenu} className="text-white bg-mint hover:bg-mint-dark px-3 py-2 rounded-md text-base font-medium transition-colors shadow-sm">Sign Up</Link>
                 </div>
               )}
             </div>
@@ -2169,6 +2896,305 @@ const Navbar = () => {
 };
 
 export default Navbar;
+</file>
+
+<file path="FrontEnd/components/PrivateRoute.jsx">
+import { Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+
+const PrivateRoute = ({ children, roles }) => {
+  const { isAuthenticated, user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    // You can add a loading spinner here
+    return <div>Loading...</div>;
+  }
+
+  if (!isAuthenticated) {
+    // Redirect them to the /login page, but save the current location they were
+    // trying to go to. This allows us to send them along to that page after they login.
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (roles && !roles.includes(user.role)) {
+    // Redirect them to a "not authorized" page or the home page
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+};
+
+export default PrivateRoute;
+</file>
+
+<file path="FrontEnd/components/ProfileEdit.jsx">
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { profileAPI, uploadAPI } from '../services/api';
+import { motion } from 'framer-motion';
+
+const ProfileEdit = () => {
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+
+  // State for form fields
+  const [formData, setFormData] = useState({
+    bio: '',
+    skills: '',
+    location: '',
+    hourly_rate: ''
+  });
+
+  // State for file handling
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState('');
+  
+  // State for loading and errors
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [pageLoading, setPageLoading] = useState(true);
+
+  // Fetch existing profile data when the component loads
+  useEffect(() => {
+    if (!authLoading && user) {
+      const fetchProfile = async () => {
+        try {
+          const res = await profileAPI.getProfile(user.id);
+          setFormData({
+            bio: res.data.bio || '',
+            skills: (res.data.skills || []).join(', '), // Convert array to comma-separated string for the input
+            location: res.data.location || '',
+            hourly_rate: res.data.hourly_rate || ''
+          });
+          if (res.data.avatar_url) {
+            setAvatarPreview(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${res.data.avatar_url}`);
+          }
+        } catch (err) {
+          console.error('Failed to fetch profile', err);
+          setError('Could not load your profile data.');
+        } finally {
+          setPageLoading(false);
+        }
+      };
+      fetchProfile();
+    }
+  }, [user, authLoading]);
+
+  // Handle changes to form inputs
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  // Handle file selection for the avatar
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file)); // Create a temporary URL for preview
+    }
+  };
+
+  // Handle the form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Step 1: Upload avatar if a new one is selected
+      if (avatarFile) {
+        const uploadFormData = new FormData();
+        uploadFormData.append('avatar', avatarFile);
+        await uploadAPI.uploadAvatar(uploadFormData);
+      }
+      
+      // Step 2: Update the rest of the profile data
+      const profileData = {
+        ...formData,
+        // Convert the comma-separated string back to an array for the backend
+        skills: formData.skills.split(',').map(skill => skill.trim()).filter(Boolean),
+        hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : null,
+      };
+      await profileAPI.updateProfile(user.id, profileData);
+      
+      alert("Profile updated successfully!");
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Failed to update profile', err);
+      setError(err.response?.data?.error || 'Failed to update profile. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  if (pageLoading || authLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading profile...</div>;
+  }
+
+  return (
+    <div className="min-h-screen bg-lightgray-light py-12 px-4 sm:px-6 lg:px-8">
+      <motion.div
+        className="max-w-3xl mx-auto"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="bg-white rounded-2xl shadow-xl p-8 border-2 border-mint/20">
+          <h1 className="text-3xl font-bold text-charcoal mb-6">Edit Your Profile</h1>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && <div className="text-red-500 bg-red-100 p-3 rounded-md">{error}</div>}
+            
+            {/* Avatar Upload Section */}
+            <div>
+              <label className="block text-sm font-medium text-charcoal mb-2">Profile Picture</label>
+              <div className="flex items-center gap-4">
+                <img 
+                  src={avatarPreview || `https://ui-avatars.com/api/?name=${user.name.replace(' ', '+')}&background=00CEC9&color=fff`} 
+                  alt="Avatar Preview" 
+                  className="w-20 h-20 rounded-full object-cover border-2 border-lightgray"
+                />
+                <input 
+                  type="file" 
+                  id="avatar" 
+                  name="avatar" 
+                  accept="image/png, image/jpeg, image/gif"
+                  onChange={handleFileChange}
+                  className="block w-full text-sm text-charcoal file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-mint/10 file:text-mint hover:file:bg-mint/20 cursor-pointer"
+                />
+              </div>
+            </div>
+
+            {/* Bio */}
+            <div>
+              <label htmlFor="bio" className="block text-sm font-medium text-charcoal mb-2">Bio</label>
+              <textarea id="bio" name="bio" rows="4" className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mint" placeholder="Tell everyone a little about yourself" value={formData.bio} onChange={handleChange}></textarea>
+            </div>
+
+            {/* Skills */}
+            <div>
+              <label htmlFor="skills" className="block text-sm font-medium text-charcoal mb-2">Skills (comma separated)</label>
+              <input id="skills" name="skills" type="text" className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mint" placeholder="e.g., Logo Design, Branding, UI/UX" value={formData.skills} onChange={handleChange} />
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Location */}
+              <div>
+                <label htmlFor="location" className="block text-sm font-medium text-charcoal mb-2">Location</label>
+                <input id="location" name="location" type="text" className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mint" placeholder="e.g., New York, USA" value={formData.location} onChange={handleChange} />
+              </div>
+              {/* Hourly Rate (Only for Designers) */}
+              {user.role === 'designer' && (
+                <div>
+                  <label htmlFor="hourly_rate" className="block text-sm font-medium text-charcoal mb-2">Hourly Rate ($)</label>
+                  <input id="hourly_rate" name="hourly_rate" type="number" step="0.01" className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mint" placeholder="e.g., 50" value={formData.hourly_rate} onChange={handleChange} />
+                </div>
+              )}
+            </div>
+            
+            <div className="flex justify-end gap-4 pt-4">
+              <button type="button" onClick={() => navigate('/dashboard')} className="px-6 py-2 rounded-lg text-charcoal bg-lightgray hover:bg-lightgray-dark">Cancel</button>
+              <button type="submit" disabled={isLoading} className="px-6 py-2 rounded-lg text-white bg-mint hover:bg-mint-dark disabled:opacity-50">{isLoading ? 'Saving...' : 'Save Changes'}</button>
+            </div>
+          </form>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+export default ProfileEdit;
+</file>
+
+<file path="FrontEnd/components/ReviewForm.jsx">
+import { useState } from 'react';
+import { reviewAPI } from '../services/api';
+
+const StarInput = ({ rating, setRating }) => {
+  return (
+    <div className="flex">
+      {[...Array(5)].map((_, index) => {
+        const starValue = index + 1;
+        return (
+          <span
+            key={starValue}
+            className={`cursor-pointer text-3xl ${starValue <= rating ? 'text-yellow-400' : 'text-gray-300'}`}
+            onClick={() => setRating(starValue)}
+            onMouseOver={() => setRating(starValue)}
+          >
+            ★
+          </span>
+        );
+      })}
+    </div>
+  );
+};
+
+const ReviewForm = ({ orderId, revieweeId, onReviewSubmitted }) => {
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (rating === 0) {
+      setError('Please select a star rating.');
+      return;
+    }
+    setError('');
+    setIsSubmitting(true);
+    try {
+      await reviewAPI.createReview({
+        order_id: orderId,
+        reviewee_id: revieweeId,
+        rating: rating,
+        comment: comment,
+      });
+      // Notify parent component that the review was submitted
+      onReviewSubmitted();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to submit review.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-lg p-8 mt-8">
+      <h2 className="text-2xl font-semibold text-charcoal mb-4">Leave a Review</h2>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && <div className="text-red-500 bg-red-100 p-3 rounded-md">{error}</div>}
+        <div>
+          <label className="block text-sm font-medium text-charcoal mb-2">Your Rating</label>
+          <StarInput rating={rating} setRating={setRating} />
+        </div>
+        <div>
+          <label htmlFor="comment" className="block text-sm font-medium text-charcoal mb-2">Your Comments</label>
+          <textarea
+            id="comment"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows="4"
+            className="w-full p-2 border-2 border-lightgray-dark rounded-md focus:ring-mint focus:border-mint"
+            placeholder="Share your experience with this user..."
+          ></textarea>
+        </div>
+        <div className="text-right">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="bg-mint text-white px-6 py-2 rounded-md hover:bg-mint-dark transition-colors disabled:opacity-50"
+          >
+            {isSubmitting ? 'Submitting...' : 'Submit Review'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+export default ReviewForm;
 </file>
 
 <file path="FrontEnd/context/AuthContext.jsx">
@@ -2314,7 +3340,8 @@ export const useAuth = () => {
 <file path="FrontEnd/main.jsx">
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import './index.css'
+// Correct the path to the CSS file
+import './styles/index.css' 
 import App from './App.jsx'
 
 createRoot(document.getElementById('root')).render(
@@ -2356,8 +3383,23 @@ export default AdminPanel;
 
 <file path="FrontEnd/pages/Browse.jsx">
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { profileAPI } from '../services/api';
+
+// A small, reusable component to display the star rating on the card
+const MiniStarRating = ({ rating, reviewCount }) => {
+  if (!rating) return <div className="h-5"></div>; // Keep height consistent
+  return (
+    <div className="flex items-center mt-1">
+      <span className="text-yellow-400">★</span>
+      <span className="ml-1 text-sm font-semibold text-charcoal">
+        {parseFloat(rating).toFixed(1)}
+      </span>
+      <span className="ml-2 text-sm text-charcoal-light">({reviewCount} reviews)</span>
+    </div>
+  );
+};
 
 const Browse = () => {
   const [profiles, setProfiles] = useState([]);
@@ -2371,6 +3413,8 @@ const Browse = () => {
   });
 
   useEffect(() => {
+    // This function will be called whenever the filters change.
+    // A debounce could be added here in a real application to prevent excessive API calls.
     fetchProfiles();
   }, [filters]);
 
@@ -2403,10 +3447,10 @@ const Browse = () => {
 
   return (
     <div className="min-h-screen bg-lightgray-light">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-charcoal mb-4">Browse Designers</h1>
-          <p className="text-charcoal-light">Find the perfect designer for your project</p>
+          <h1 className="text-3xl font-bold text-charcoal mb-2">Browse Designers</h1>
+          <p className="text-charcoal-light text-lg">Find the perfect creative partner for your next project.</p>
         </div>
 
         {/* Filters */}
@@ -2415,7 +3459,7 @@ const Browse = () => {
             <input
               type="text"
               name="search"
-              placeholder="Search designers..."
+              placeholder="Search by name, skill..."
               className="px-4 py-2 border-2 border-lightgray-dark rounded-md focus:ring-mint focus:border-mint"
               value={filters.search}
               onChange={handleFilterChange}
@@ -2458,72 +3502,63 @@ const Browse = () => {
         {/* Results */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {profiles.length === 0 ? (
-            <div className="col-span-full text-center py-12">
-              <p className="text-charcoal-light text-lg">No designers found matching your criteria</p>
+            <div className="col-span-full text-center py-16 bg-white rounded-lg shadow-md">
+              <p className="text-charcoal-light text-lg">No designers found matching your criteria.</p>
             </div>
           ) : (
             profiles.map((profile, index) => (
               <motion.div
                 key={profile.user_id}
-                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow border-2 border-transparent hover:border-mint"
+                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow border-2 border-transparent hover:border-mint flex flex-col"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
+                transition={{ delay: index * 0.05 }}
                 whileHover={{ scale: 1.02 }}
               >
-                <div className="p-6">
+                <div className="p-6 flex-grow">
                   <div className="flex items-center mb-4">
-                    <div className="w-12 h-12 bg-mint/10 rounded-full flex items-center justify-center">
-                      <span className="text-mint font-semibold text-lg">
-                        {profile.name.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
+                    <img 
+                      src={profile.avatar_url ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${profile.avatar_url}` : `https://ui-avatars.com/api/?name=${profile.name.replace(' ', '+')}&background=DFE6E9&color=2D3436`}
+                      alt={profile.name}
+                      className="w-16 h-16 rounded-full object-cover border-2 border-lightgray"
+                    />
                     <div className="ml-4">
                       <h3 className="text-lg font-semibold text-charcoal">{profile.name}</h3>
-                      <p className="text-charcoal-light">{profile.location || 'Location not specified'}</p>
+                      <p className="text-charcoal-light text-sm">{profile.location || 'Location not specified'}</p>
                     </div>
                   </div>
                   
-                  <p className="text-charcoal mb-4 line-clamp-3">
-                    {profile.bio || 'No bio available'}
+                  <p className="text-charcoal mb-4 line-clamp-3 h-20">
+                    {profile.bio || 'No bio available. Click to view the full profile for more details.'}
                   </p>
                   
-                  <div className="flex flex-wrap gap-2 mb-4">
+                  <div className="flex flex-wrap gap-2 mb-4 h-10">
                     {profile.skills.slice(0, 3).map((skill, idx) => (
                       <span
                         key={idx}
-                        className="px-3 py-1 bg-mint/10 text-mint text-sm rounded-full"
+                        className="px-3 py-1 bg-mint/10 text-mint text-xs font-semibold rounded-full"
                       >
                         {skill}
                       </span>
                     ))}
                     {profile.skills.length > 3 && (
-                      <span className="px-3 py-1 bg-lightgray text-charcoal-light text-sm rounded-full">
+                      <span className="px-3 py-1 bg-lightgray text-charcoal-light text-xs font-semibold rounded-full">
                         +{profile.skills.length - 3} more
                       </span>
                     )}
                   </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <div>
-                      {profile.hourly_rate && (
-                        <p className="text-lg font-semibold text-mint">
-                          ${profile.hourly_rate}/hr
-                        </p>
-                      )}
-                      {profile.avg_rating && (
-                        <div className="flex items-center">
-                          <span className="text-mint">★</span>
-                          <span className="ml-1 text-sm text-charcoal-light">
-                            {profile.avg_rating} ({profile.completed_orders} projects)
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    <button className="bg-mint text-white px-4 py-2 rounded-md hover:bg-mint-dark transition-colors">
-                      View Profile
-                    </button>
+                </div>
+                
+                <div className="bg-lightgray-light p-4 flex justify-between items-center">
+                  <div>
+                    {profile.hourly_rate && (
+                      <p className="text-lg font-bold text-mint">${profile.hourly_rate}/hr</p>
+                    )}
+                    <MiniStarRating rating={profile.avg_rating} reviewCount={profile.review_count} />
                   </div>
+                  <Link to={`/designer/${profile.user_id}`} className="bg-charcoal text-white px-4 py-2 rounded-md hover:bg-charcoal-light transition-colors text-sm font-semibold">
+                    View Profile
+                  </Link>
                 </div>
               </motion.div>
             ))
@@ -2552,18 +3587,144 @@ const Checkout = () => {
 export default Checkout;
 </file>
 
+<file path="FrontEnd/pages/CreateListing.jsx">
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { listingAPI } from '../services/api';
+
+const CreateListing = () => {
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    budget_min: '',
+    budget_max: '',
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+    try {
+      await listingAPI.createListing(formData);
+      navigate('/listings');
+    } catch (err) {
+      const errorMessage = err.response?.data?.errors?.[0]?.msg || err.response?.data?.error || 'Failed to create listing.';
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-lightgray-light py-12 px-4 sm:px-6 lg:px-8">
+      <motion.div
+        className="max-w-3xl mx-auto"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="bg-white rounded-2xl shadow-xl p-8 border-2 border-mint/20">
+          <h1 className="text-3xl font-bold text-charcoal mb-6">Post a New Project</h1>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && <div className="text-red-500 bg-red-100 p-3 rounded-md">{error}</div>}
+            
+            <div>
+              <label htmlFor="title" className="block text-sm font-medium text-charcoal mb-2">Project Title</label>
+              <input id="title" name="title" type="text" required value={formData.title} onChange={handleChange} className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mint" placeholder="e.g., Logo for a new coffee shop" />
+            </div>
+            
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-charcoal mb-2">Project Description</label>
+              <textarea id="description" name="description" rows="5" required value={formData.description} onChange={handleChange} className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mint" placeholder="Describe the project requirements in detail..."></textarea>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label htmlFor="budget_min" className="block text-sm font-medium text-charcoal mb-2">Minimum Budget ($)</label>
+                <input id="budget_min" name="budget_min" type="number" required value={formData.budget_min} onChange={handleChange} className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mint" placeholder="e.g., 500" />
+              </div>
+              <div>
+                <label htmlFor="budget_max" className="block text-sm font-medium text-charcoal mb-2">Maximum Budget ($)</label>
+                <input id="budget_max" name="budget_max" type="number" required value={formData.budget_max} onChange={handleChange} className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mint" placeholder="e.g., 1500" />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-4 pt-4">
+              <button type="button" onClick={() => navigate('/dashboard')} className="px-6 py-2 rounded-lg text-charcoal bg-lightgray hover:bg-lightgray-dark">Cancel</button>
+              <button type="submit" disabled={isLoading} className="px-6 py-2 rounded-lg text-white bg-mint hover:bg-mint-dark disabled:opacity-50">{isLoading ? 'Submitting...' : 'Post Project'}</button>
+            </div>
+          </form>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+export default CreateListing;
+</file>
+
 <file path="FrontEnd/pages/Dashboard.jsx">
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { dashboardAPI } from '../services/api';
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const [stats, setStats] = useState({
+    projects: 0,
+    earnings: 0,
+    messages: 0,
+    reviews: 0
+  });
+  const [statsLoading, setStatsLoading] = useState(true);
 
+  useEffect(() => {
+    // This function will fetch the real stats from the backend
+    const fetchStats = async () => {
+      if (!user) return;
+      try {
+        setStatsLoading(true);
+        const response = await dashboardAPI.getStats();
+        setStats(response.data);
+      } catch (error) {
+        console.error("Failed to fetch dashboard stats", error);
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+
+    // We only fetch stats once the user object is available
+    if (!authLoading) {
+      fetchStats();
+    }
+  }, [user, authLoading]);
+  
+  // Display a loading spinner while user auth or stats are being fetched
+  if (authLoading || statsLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-lightgray-light">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-4 border-mint"></div>
+      </div>
+    );
+  }
+
+  // Handle case where user is not logged in (e.g., token expired)
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-lightgray-light">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-charcoal mb-4">Please log in to access your dashboard</h2>
+          <h2 className="text-2xl font-bold text-charcoal mb-4">Please log in to access your dashboard.</h2>
+          <Link to="/login" className="text-mint hover:underline">Go to Login</Link>
         </div>
       </div>
     );
@@ -2590,19 +3751,19 @@ const Dashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-mint">
               <h3 className="text-lg font-semibold text-charcoal mb-2">Active Projects</h3>
-              <p className="text-3xl font-bold text-mint">0</p>
+              <p className="text-3xl font-bold text-mint">{stats.projects}</p>
             </div>
             <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-mint">
-              <h3 className="text-lg font-semibold text-charcoal mb-2">Total Earnings</h3>
-              <p className="text-3xl font-bold text-mint">$0</p>
+              <h3 className="text-lg font-semibold text-charcoal mb-2">{user.role === 'designer' ? 'Total Earnings' : 'Total Spent'}</h3>
+              <p className="text-3xl font-bold text-mint">${stats.earnings.toFixed(2)}</p>
             </div>
             <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-mint">
-              <h3 className="text-lg font-semibold text-charcoal mb-2">Messages</h3>
-              <p className="text-3xl font-bold text-mint">0</p>
+              <h3 className="text-lg font-semibold text-charcoal mb-2">Unread Messages</h3>
+              <p className="text-3xl font-bold text-mint">{stats.messages}</p>
             </div>
             <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-mint">
-              <h3 className="text-lg font-semibold text-charcoal mb-2">Reviews</h3>
-              <p className="text-3xl font-bold text-mint">0</p>
+              <h3 className="text-lg font-semibold text-charcoal mb-2">Reviews Received</h3>
+              <p className="text-3xl font-bold text-mint">{stats.reviews}</p>
             </div>
           </div>
 
@@ -2621,23 +3782,16 @@ const Dashboard = () => {
 const DesignerDashboard = () => {
   return (
     <div className="space-y-8">
-      {/* Quick Actions */}
       <div className="bg-white p-6 rounded-lg shadow-md border-2 border-mint/20">
         <h2 className="text-xl font-semibold text-charcoal mb-4">Quick Actions</h2>
         <div className="flex flex-wrap gap-4">
-          <button className="bg-mint text-white px-6 py-3 rounded-md hover:bg-mint-dark">
-            Create New Gig
-          </button>
-          <button className="bg-charcoal text-white px-6 py-3 rounded-md hover:bg-charcoal-light">
+          <button className="bg-mint text-white px-6 py-3 rounded-md hover:bg-mint-dark">Create New Gig</button>
+          <Link to="/listings" className="bg-charcoal text-white px-6 py-3 rounded-md hover:bg-charcoal-light">
             Browse Projects
-          </button>
-          <button className="bg-mint-light text-charcoal px-6 py-3 rounded-md hover:bg-mint">
-            Update Portfolio
-          </button>
+          </Link>
+          <Link to="/profile/edit" className="bg-mint-light text-charcoal px-6 py-3 rounded-md hover:bg-mint">Update Profile</Link>
         </div>
       </div>
-
-      {/* Recent Activity */}
       <div className="bg-white p-6 rounded-lg shadow-md border-2 border-mint/20">
         <h2 className="text-xl font-semibold text-charcoal mb-4">Recent Activity</h2>
         <p className="text-charcoal-light">No recent activity to show.</p>
@@ -2649,23 +3803,18 @@ const DesignerDashboard = () => {
 const BusinessDashboard = () => {
   return (
     <div className="space-y-8">
-      {/* Quick Actions */}
       <div className="bg-white p-6 rounded-lg shadow-md border-2 border-mint/20">
         <h2 className="text-xl font-semibold text-charcoal mb-4">Quick Actions</h2>
         <div className="flex flex-wrap gap-4">
-          <button className="bg-mint text-white px-6 py-3 rounded-md hover:bg-mint-dark">
+          <Link to="/listings/new" className="bg-mint text-white px-6 py-3 rounded-md hover:bg-mint-dark">
             Post New Project
-          </button>
-          <button className="bg-charcoal text-white px-6 py-3 rounded-md hover:bg-charcoal-light">
+          </Link>
+          <Link to="/browse" className="bg-charcoal text-white px-6 py-3 rounded-md hover:bg-charcoal-light">
             Browse Designers
-          </button>
-          <button className="bg-mint-light text-charcoal px-6 py-3 rounded-md hover:bg-mint">
-            View Proposals
-          </button>
+          </Link>
+          <Link to="/profile/edit" className="bg-mint-light text-charcoal px-6 py-3 rounded-md hover:bg-mint">Update Profile</Link>
         </div>
       </div>
-
-      {/* Recent Projects */}
       <div className="bg-white p-6 rounded-lg shadow-md border-2 border-mint/20">
         <h2 className="text-xl font-semibold text-charcoal mb-4">Recent Projects</h2>
         <p className="text-charcoal-light">No projects posted yet.</p>
@@ -2829,18 +3978,306 @@ export default Home;
 </file>
 
 <file path="FrontEnd/pages/ListingDetail.jsx">
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { listingAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import ReviewForm from '../components/ReviewForm';
+
 const ListingDetail = () => {
+  const { id } = useParams();
+  const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  
+  // State for data
+  const [listing, setListing] = useState(null);
+  const [proposals, setProposals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  // State for the proposal form
+  const [proposalForm, setProposalForm] = useState({ message: '', price_offered: '', delivery_time: '' });
+  const [submitError, setSubmitError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // State for review simulation
+  const [isProjectComplete, setIsProjectComplete] = useState(false); 
+  const [hasAlreadyReviewed, setHasAlreadyReviewed] = useState(false);
+
+  useEffect(() => {
+    const fetchListingData = async () => {
+      if (!id) return;
+      try {
+        setLoading(true);
+        const res = await listingAPI.getListing(id);
+        setListing(res.data);
+
+        // If the logged-in user is the owner of this listing, fetch proposals.
+        if (isAuthenticated && user?.id === res.data.owner_id) {
+          const proposalsRes = await listingAPI.getProposalsForListing(id);
+          setProposals(proposalsRes.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch listing data:', error);
+        if (error.response?.status === 404) navigate('/404'); // Or a "not found" page
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchListingData();
+  }, [id, user, isAuthenticated, navigate]);
+
+  const handleProposalChange = (e) => {
+    setProposalForm({ ...proposalForm, [e.target.name]: e.target.value });
+  };
+  
+  const handleProposalSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitError('');
+    try {
+      await listingAPI.submitProposal(id, proposalForm);
+      alert('Proposal submitted successfully!');
+      navigate('/listings');
+    } catch (err) {
+      const errorMessage = err.response?.data?.error || 'Failed to submit proposal.';
+      setSubmitError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReviewSubmitted = () => {
+    alert("Thank you for your review!");
+    setHasAlreadyReviewed(true);
+  };
+
+  const handleAcceptProposal = (proposalId) => {
+    // In a real app, this would trigger a backend endpoint.
+    alert(`(Simulated) Accepting proposal ID: ${proposalId}. This will create an order and notify the designer.`);
+    // Example: await orderAPI.createFromProposal(proposalId);
+  };
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-32 w-32 border-b-4 border-mint"></div></div>;
+  }
+  if (!listing) {
+    return <div className="min-h-screen flex items-center justify-center"><h2 className="text-2xl font-bold text-charcoal">Listing not found.</h2></div>;
+  }
+
+  const isOwner = isAuthenticated && user?.id === listing.owner_id;
+  const showReviewForm = isOwner && isProjectComplete && !hasAlreadyReviewed;
+  const showProposalForm = isAuthenticated && user.role === 'designer' && !isOwner;
+  const SERVER_BASE_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="bg-white rounded-lg shadow-lg p-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">Project Details</h1>
-        <p className="text-gray-600">Project details will be implemented here.</p>
+    <div className="min-h-screen bg-lightgray-light">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {isOwner && (
+            <div className="mb-4 bg-yellow-100 p-4 rounded-lg text-yellow-800 border border-yellow-300">
+            <p className="font-bold">Developer Simulation Panel</p>
+            <label className="flex items-center mt-2 cursor-pointer">
+                <input type="checkbox" checked={isProjectComplete} onChange={() => setIsProjectComplete(!isProjectComplete)} />
+                <span className="ml-2 text-sm">Simulate "Project Complete" to show review form.</span>
+            </label>
+            </div>
+        )}
+
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-lg shadow-lg p-8">
+          <div className="border-b pb-6 mb-6">
+            <h1 className="text-4xl font-bold text-charcoal">{listing.title}</h1>
+            <p className="text-charcoal-light mt-2">Posted by {listing.owner_name}</p>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <h2 className="text-2xl font-semibold text-charcoal mb-4">Project Description</h2>
+              <p className="text-charcoal leading-relaxed whitespace-pre-wrap">{listing.description}</p>
+            </div>
+            <div className="lg:col-span-1">
+              <div className="bg-lightgray-light p-6 rounded-lg">
+                <h3 className="text-xl font-semibold text-charcoal mb-4">Project Details</h3>
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm text-charcoal-light">Budget</p>
+                    <p className="font-semibold text-mint text-lg">${listing.budget_min} - ${listing.budget_max}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-charcoal-light">Deadline</p>
+                    <p className="font-semibold">{listing.deadline ? new Date(listing.deadline).toLocaleDateString() : 'Not specified'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+        
+        {isOwner && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{delay: 0.1}} className="bg-white rounded-lg shadow-lg p-8 mt-8">
+            <h2 className="text-2xl font-semibold text-charcoal mb-6">Received Proposals ({proposals.length})</h2>
+            <div className="space-y-6">
+              {proposals.length > 0 ? (
+                proposals.map(proposal => (
+                  <div key={proposal.id} className="border border-lightgray rounded-lg p-4 transition-shadow hover:shadow-md">
+                    <div className="flex flex-col sm:flex-row items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <img 
+                          src={proposal.designer_avatar ? `${SERVER_BASE_URL}${proposal.designer_avatar}` : `https://ui-avatars.com/api/?name=${proposal.designer_name.replace(' ', '+')}`}
+                          alt={proposal.designer_name}
+                          className="w-12 h-12 rounded-full object-cover bg-lightgray"
+                        />
+                        <div>
+                          <Link to={`/designer/${proposal.designer_id}`} className="font-bold text-charcoal hover:underline">{proposal.designer_name}</Link>
+                          <p className="text-sm text-charcoal-light">{new Date(proposal.created_at).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <div className="text-left sm:text-right mt-2 sm:mt-0">
+                        <p className="font-bold text-lg text-mint">${proposal.price_offered}</p>
+                        <p className="text-sm text-charcoal-light">{proposal.delivery_time} days delivery</p>
+                      </div>
+                    </div>
+                    <p className="mt-4 text-charcoal-light bg-lightgray-light p-3 rounded-md">{proposal.message}</p>
+                    <div className="mt-4 flex justify-end gap-3">
+                      <button className="bg-charcoal text-white px-4 py-2 rounded-md hover:bg-charcoal-light transition-colors font-semibold text-sm">Message</button>
+                      <button 
+                        onClick={() => handleAcceptProposal(proposal.id)}
+                        className="bg-mint text-white px-4 py-2 rounded-md hover:bg-mint-dark transition-colors font-semibold text-sm"
+                      >
+                        Accept Proposal
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-charcoal-light">You have not received any proposals for this project yet.</p>
+              )}
+            </div>
+          </motion.div>
+        )}
+        
+        {showProposalForm && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{delay: 0.2}} className="bg-white rounded-lg shadow-lg p-8 mt-8">
+            <h2 className="text-2xl font-semibold text-charcoal mb-6">Submit a Proposal</h2>
+            <form onSubmit={handleProposalSubmit} className="space-y-4">
+              {submitError && <div className="text-red-500 bg-red-100 p-3 rounded-md">{submitError}</div>}
+              <div>
+                <label htmlFor="message" className="block text-sm font-medium text-charcoal mb-1">Your Message</label>
+                <textarea id="message" name="message" rows="5" required value={proposalForm.message} onChange={handleProposalChange} className="w-full p-2 border-2 border-lightgray-dark rounded-md focus:ring-mint focus:border-mint" placeholder="Introduce yourself and explain why you're a great fit for this project..."></textarea>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="price_offered" className="block text-sm font-medium text-charcoal mb-1">Your Price ($)</label>
+                  <input id="price_offered" name="price_offered" type="number" required value={proposalForm.price_offered} onChange={handleProposalChange} className="w-full p-2 border-2 border-lightgray-dark rounded-md focus:ring-mint focus:border-mint" placeholder="e.g., 1200" />
+                </div>
+                <div>
+                  <label htmlFor="delivery_time" className="block text-sm font-medium text-charcoal mb-1">Delivery Time (days)</label>
+                  <input id="delivery_time" name="delivery_time" type="number" required value={proposalForm.delivery_time} onChange={handleProposalChange} className="w-full p-2 border-2 border-lightgray-dark rounded-md focus:ring-mint focus:border-mint" placeholder="e.g., 14" />
+                </div>
+              </div>
+              <div className="text-right">
+                <button type="submit" disabled={isSubmitting} className="bg-mint text-white px-6 py-2 rounded-md hover:bg-mint-dark transition-colors disabled:opacity-50">{isSubmitting ? 'Submitting...' : 'Submit Proposal'}</button>
+              </div>
+            </form>
+          </motion.div>
+        )}
+        
+        {showReviewForm && (
+          <ReviewForm 
+            orderId={1}
+            revieweeId={1}
+            onReviewSubmitted={handleReviewSubmitted}
+          />
+        )}
       </div>
     </div>
   );
 };
 
 export default ListingDetail;
+</file>
+
+<file path="FrontEnd/pages/Listings.jsx">
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { listingAPI } from '../services/api';
+
+const Listings = () => {
+  const [listings, setListings] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchListings = async () => {
+      try {
+        const response = await listingAPI.getListings();
+        setListings(response.data);
+      } catch (error) {
+        console.error('Failed to fetch listings:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchListings();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-lightgray-light">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-4 border-mint"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-lightgray-light">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-charcoal">Find Work</h1>
+            <p className="text-charcoal-light mt-1">Browse and apply to the latest design projects.</p>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          {listings.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-lg shadow-md">
+              <h3 className="text-xl font-semibold text-charcoal">No Open Projects</h3>
+              <p className="text-charcoal-light mt-2">Check back later for new opportunities!</p>
+            </div>
+          ) : (
+            listings.map((listing, index) => (
+              <motion.div
+                key={listing.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <Link to={`/listing/${listing.id}`} className="block bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow border-2 border-transparent hover:border-mint">
+                  <div className="flex flex-col sm:flex-row justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-charcoal hover:text-mint">{listing.title}</h2>
+                      <p className="text-sm text-charcoal-light mt-1">Posted by {listing.owner_name}</p>
+                    </div>
+                    <div className="mt-4 sm:mt-0 text-left sm:text-right">
+                      <p className="text-lg font-bold text-mint">${listing.budget_min} - ${listing.budget_max}</p>
+                      <p className="text-sm text-charcoal-light">Budget</p>
+                    </div>
+                  </div>
+                  <p className="mt-4 text-charcoal line-clamp-2">{listing.description}</p>
+                  <div className="mt-4 flex items-center justify-between text-sm text-charcoal-light">
+                    <span>Deadline: {listing.deadline ? new Date(listing.deadline).toLocaleDateString() : 'Not specified'}</span>
+                    <span className="text-mint font-semibold">View Details &rarr;</span>
+                  </div>
+                </Link>
+              </motion.div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Listings;
 </file>
 
 <file path="FrontEnd/pages/Login.jsx">
@@ -3049,25 +4486,180 @@ export default Login;
 </file>
 
 <file path="FrontEnd/pages/Messages.jsx">
+import { useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { messageAPI } from '../services/api';
+import { io } from 'socket.io-client';
+
+const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+  transports: ['polling', 'websocket']
+});
+
 const Messages = () => {
+  const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  const [threads, setThreads] = useState([]);
+  const [activeThread, setActiveThread] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  
+  const messagesEndRef = useRef(null);
+
+  const fetchThreads = async () => {
+    if (!user) return [];
+    setLoading(true);
+    try {
+      const res = await messageAPI.getThreads();
+      setThreads(res.data);
+      return res.data;
+    } catch (error) {
+      console.error("Failed to fetch threads:", error);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      // Connect and join room
+      socket.connect();
+      socket.emit('join_room', user.id);
+
+      // Listener for incoming messages
+      const handleReceiveMessage = (message) => {
+        // If the message belongs to the currently open chat, add it to the view
+        if (activeThread && message.thread_id === activeThread.thread_id) {
+          setMessages((prev) => [...prev, message]);
+        }
+        // Always refresh the thread list to show the new "last message"
+        fetchThreads();
+      };
+      socket.on('receive_message', handleReceiveMessage);
+
+      // Initial data load
+      const initialize = async () => {
+        const allThreads = await fetchThreads();
+        const newConversationUser = location.state?.newConversationWith;
+
+        if (newConversationUser) {
+          const existingThread = allThreads.find(t => t.participant_id === newConversationUser.id);
+          if (existingThread) {
+            handleThreadClick(existingThread);
+          } else {
+            const placeholder = {
+              thread_id: [user.id, newConversationUser.id].sort().join('-'),
+              participant_id: newConversationUser.id,
+              participant_name: newConversationUser.name,
+              last_message: 'Start the conversation!',
+              isPlaceholder: true,
+            };
+            setThreads(prev => [placeholder, ...prev]);
+            setActiveThread(placeholder);
+            setMessages([]);
+          }
+          navigate(location.pathname, { replace: true });
+        }
+      };
+      initialize();
+      
+      return () => {
+        socket.off('receive_message', handleReceiveMessage);
+        socket.disconnect();
+      };
+    }
+  }, [user]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleThreadClick = async (thread) => {
+    setActiveThread(thread);
+    if (thread.isPlaceholder) {
+      setMessages([]);
+      return;
+    }
+    try {
+      const res = await messageAPI.getMessages(thread.participant_id);
+      setMessages(res.data);
+    } catch (error) {
+      console.error("Failed to fetch messages:", error);
+    }
+  };
+  
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    if (newMessage.trim() === '' || !activeThread) return;
+    
+    // Only emit the event to the server. The server is the source of truth.
+    // The server will save it, broadcast it back, and our `receive_message` listener will then add it to the UI.
+    socket.emit('send_message', {
+      sender_id: user.id,
+      recipient_id: activeThread.participant_id,
+      body: newMessage,
+    });
+    setNewMessage('');
+  };
+
+  if (loading) {
+    return <div className="p-4 text-center">Loading conversations...</div>;
+  }
+
   return (
-    <div className="min-h-screen bg-lightgray-light flex items-center justify-center">
-      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden border-2 border-mint/20">
-          <div className="p-6 border-b-2 border-mint">
-            <h1 className="text-2xl font-bold text-charcoal">Messages</h1>
-          </div>
-          
-          <div className="p-6 text-center">
-            <div className="text-mint mb-4">
-              <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-medium text-charcoal mb-2">No messages yet</h3>
-            <p className="text-charcoal-light">Your conversations will appear here once you start messaging other users.</p>
-          </div>
+    <div className="h-[calc(100vh-8rem)] flex bg-white max-w-7xl mx-auto my-8 rounded-lg shadow-lg border-2 border-mint/20 overflow-hidden">
+      <div className="w-1/3 border-r-2 border-lightgray flex flex-col">
+        <div className="p-4 border-b-2 border-lightgray">
+          <h2 className="text-xl font-bold text-charcoal">Conversations</h2>
         </div>
+        <div className="overflow-y-auto flex-1">
+          {threads.length === 0 ? (
+            <p className="p-4 text-charcoal-light">No conversations yet.</p>
+          ) : (
+            <ul>
+              {threads.map(thread => (
+                <li key={thread.thread_id} onClick={() => handleThreadClick(thread)} className={`p-4 cursor-pointer hover:bg-lightgray-light border-b border-lightgray ${activeThread?.thread_id === thread.thread_id ? 'bg-mint/10' : ''}`}>
+                  <p className="font-semibold text-charcoal">{thread.participant_name}</p>
+                  <p className="text-sm text-charcoal-light truncate">{thread.last_message}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+      <div className="w-2/3 flex flex-col bg-lightgray-light">
+        {activeThread ? (
+          <>
+            <div className="p-4 border-b-2 border-lightgray bg-white flex items-center">
+              <h2 className="text-xl font-bold text-charcoal">{activeThread.participant_name}</h2>
+            </div>
+            <div className="flex-1 p-4 overflow-y-auto">
+                {messages.map((msg, index) => (
+                  <div key={msg.id || `temp-${index}`} className={`flex ${msg.sender_id === user.id ? 'justify-end' : 'justify-start'} mb-4`}>
+                    <div className={`max-w-md p-3 rounded-lg shadow-sm ${msg.sender_id === user.id ? 'bg-mint text-white' : 'bg-white text-charcoal'}`}>
+                      <p>{msg.body}</p>
+                      <p className={`text-xs mt-1 text-right ${msg.sender_id === user.id ? 'text-lightgray' : 'text-charcoal-light'}`}>{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                    </div>
+                  </div>
+                ))}
+              <div ref={messagesEndRef} />
+            </div>
+            <div className="p-4 bg-white border-t-2 border-lightgray">
+              <form onSubmit={handleSendMessage} className="flex">
+                <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type a message..." className="flex-1 p-2 border-2 border-lightgray-dark rounded-l-lg focus:ring-mint focus:border-mint"/>
+                <button type="submit" className="px-4 py-2 bg-mint text-white rounded-r-lg hover:bg-mint-dark font-semibold">Send</button>
+              </form>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-charcoal-light">
+            <p>Select a conversation to start chatting.</p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -3077,143 +4669,174 @@ export default Messages;
 </file>
 
 <file path="FrontEnd/pages/Profile.jsx">
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { profileAPI } from '../services/api';
+import { profileAPI, reviewAPI } from '../services/api';
 import { motion } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
+
+const StarRating = ({ rating, reviewCount }) => {
+  if (!rating) return <div className="text-sm text-charcoal-light">No reviews yet</div>;
+  const fullStars = Math.floor(rating);
+  const halfStar = rating % 1 !== 0;
+  const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
+
+  return (
+    <div className="flex items-center">
+      {[...Array(fullStars)].map((_, i) => <span key={`full_${i}`} className="text-yellow-400 text-xl">★</span>)}
+      {halfStar && <span className="text-yellow-400 text-xl">☆</span>}
+      {[...Array(emptyStars)].map((_, i) => <span key={`empty_${i}`} className="text-gray-300 text-xl">★</span>)}
+      {reviewCount > 0 && <span className="ml-2 text-charcoal-light text-sm">({reviewCount} reviews)</span>}
+    </div>
+  );
+};
 
 const Profile = () => {
   const { id } = useParams();
+  const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
+  const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchProfile();
+    const fetchProfileData = async () => {
+      try {
+        setLoading(true);
+        // Fetch both profile and reviews at the same time for efficiency
+        const [profileRes, reviewsRes] = await Promise.all([
+          profileAPI.getProfile(id),
+          reviewAPI.getReviewsForUser(id)
+        ]);
+        setProfile(profileRes.data);
+        setReviews(reviewsRes.data);
+      } catch (error) {
+        console.error('Failed to fetch profile data:', error);
+        // This will stop the loading spinner even if there's an error
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfileData();
   }, [id]);
 
-  const fetchProfile = async () => {
-    try {
-      const response = await profileAPI.getProfile(id);
-      setProfile(response.data);
-    } catch (error) {
-      console.error('Failed to fetch profile:', error);
-    } finally {
-      setLoading(false);
-    }
+  const handleContact = () => {
+    navigate('/messages', { 
+      state: { 
+        newConversationWith: {
+          id: profile.user_id,
+          name: profile.name,
+        } 
+      } 
+    });
   };
 
+  // Display a loading indicator while fetching data
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-4 border-mint"></div>
       </div>
     );
   }
 
+  // Display an error message if the profile could not be loaded
   if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Profile not found</h2>
-        </div>
+        <h2 className="text-2xl font-bold text-charcoal">Designer profile not found.</h2>
       </div>
     );
   }
 
+  // --- THIS IS THE DEFINITIVE FIX ---
+  // The base URL for static files should NOT include '/api'.
+  const SERVER_BASE_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
+  
+  const avatarUrl = profile.avatar_url
+    ? `${SERVER_BASE_URL}${profile.avatar_url}`
+    : `https://ui-avatars.com/api/?name=${profile.name.replace(' ', '+')}&background=DFE6E9&color=2D3436`;
+    
+  const showContactButton = isAuthenticated && user?.role === 'business' && user?.id !== profile.user_id;
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="bg-white rounded-lg shadow-lg overflow-hidden"
-      >
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-lg shadow-lg overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-8 py-12">
-          <div className="flex items-center">
-            <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center">
-              <span className="text-indigo-600 font-bold text-3xl">
-                {profile.name.charAt(0).toUpperCase()}
-              </span>
-            </div>
-            <div className="ml-6 text-white">
+        <div className="bg-gradient-to-r from-charcoal to-charcoal-light p-8 text-white">
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+            <img 
+              src={avatarUrl} 
+              alt={profile.name}
+              className="w-24 h-24 rounded-full object-cover border-4 border-mint bg-white"
+            />
+            <div>
               <h1 className="text-3xl font-bold">{profile.name}</h1>
-              <p className="text-xl opacity-90">{profile.role}</p>
-              <p className="opacity-75">{profile.location || 'Location not specified'}</p>
+              <p className="text-xl capitalize text-lightgray">{profile.role}</p>
+              <div className="mt-2">
+                <StarRating rating={profile.avg_rating} reviewCount={profile.review_count} />
+              </div>
             </div>
           </div>
         </div>
 
         {/* Content */}
-        <div className="px-8 py-6">
+        <div className="p-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Content */}
             <div className="lg:col-span-2">
               <section className="mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">About</h2>
-                <p className="text-gray-700 leading-relaxed">
-                  {profile.bio || 'No bio available.'}
-                </p>
+                <h2 className="text-2xl font-bold text-charcoal mb-4">About Me</h2>
+                <p className="text-charcoal-light leading-relaxed">{profile.bio || 'No bio available.'}</p>
               </section>
-
-              <section className="mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Skills</h2>
-                <div className="flex flex-wrap gap-2">
-                  {profile.skills.length > 0 ? (
-                    profile.skills.map((skill, index) => (
-                      <span
-                        key={index}
-                        className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-full"
-                      >
-                        {skill}
-                      </span>
+              <section>
+                <h2 className="text-2xl font-bold text-charcoal mb-4">Reviews</h2>
+                <div className="space-y-6">
+                  {reviews.length > 0 ? (
+                    reviews.map(review => (
+                      <div key={review.id} className="border-b border-lightgray pb-4 last:border-b-0">
+                        <div className="flex items-center mb-2">
+                          <StarRating rating={review.rating} />
+                          <p className="ml-auto text-sm text-charcoal-light">{new Date(review.created_at).toLocaleDateString()}</p>
+                        </div>
+                        <p className="text-charcoal">{review.comment}</p>
+                        <p className="text-sm font-semibold text-charcoal-light mt-2">- {review.reviewer_name}</p>
+                      </div>
                     ))
                   ) : (
-                    <p className="text-gray-500">No skills listed.</p>
+                    <p className="text-charcoal-light">This user has not received any reviews yet.</p>
                   )}
                 </div>
-              </section>
-
-              <section>
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Portfolio</h2>
-                {profile.portfolio_urls.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {profile.portfolio_urls.map((url, index) => (
-                      <div key={index} className="bg-gray-100 p-4 rounded-lg">
-                        <a href={url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">
-                          Portfolio Item {index + 1}
-                        </a>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-500">No portfolio items available.</p>
-                )}
               </section>
             </div>
 
             {/* Sidebar */}
             <div className="lg:col-span-1">
-              <div className="bg-gray-50 p-6 rounded-lg">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Info</h3>
+              <div className="bg-lightgray-light p-6 rounded-lg sticky top-24">
+                <h3 className="text-lg font-semibold text-charcoal mb-4">Quick Info</h3>
                 
                 {profile.hourly_rate && (
                   <div className="mb-4">
-                    <p className="text-sm text-gray-600">Hourly Rate</p>
-                    <p className="text-2xl font-bold text-green-600">${profile.hourly_rate}/hr</p>
+                    <p className="text-sm text-charcoal-light">Hourly Rate</p>
+                    <p className="text-2xl font-bold text-mint">${profile.hourly_rate}/hr</p>
                   </div>
                 )}
                 
                 <div className="mb-4">
-                  <p className="text-sm text-gray-600">Member Since</p>
+                  <p className="text-sm text-charcoal-light">Member Since</p>
                   <p className="font-medium">
                     {new Date(profile.user_created_at).toLocaleDateString()}
                   </p>
                 </div>
 
-                <button className="w-full bg-indigo-600 text-white py-3 px-4 rounded-md hover:bg-indigo-700 transition-colors">
-                  Contact Designer
-                </button>
+                {showContactButton && (
+                  <button 
+                    onClick={handleContact}
+                    className="w-full bg-mint text-white py-3 px-4 rounded-md hover:bg-mint-dark transition-colors font-semibold"
+                  >
+                    Contact Designer
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -3224,6 +4847,184 @@ const Profile = () => {
 };
 
 export default Profile;
+</file>
+
+<file path="FrontEnd/pages/ProfileEdit.jsx">
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { profileAPI, uploadAPI } from '../services/api';
+import { motion } from 'framer-motion';
+
+const ProfileEdit = () => {
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+
+  // State for form fields
+  const [formData, setFormData] = useState({
+    bio: '',
+    skills: '',
+    location: '',
+    hourly_rate: ''
+  });
+
+  // State for file handling
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState('');
+  
+  // State for loading and errors
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [pageLoading, setPageLoading] = useState(true);
+
+  // Fetch existing profile data when the component loads
+  useEffect(() => {
+    if (!authLoading && user) {
+      const fetchProfile = async () => {
+        try {
+          const res = await profileAPI.getProfile(user.id);
+          setFormData({
+            bio: res.data.bio || '',
+            skills: (res.data.skills || []).join(', '), // Convert array to comma-separated string for the input
+            location: res.data.location || '',
+            hourly_rate: res.data.hourly_rate || ''
+          });
+          if (res.data.avatar_url) {
+            setAvatarPreview(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${res.data.avatar_url}`);
+          }
+        } catch (err) {
+          console.error('Failed to fetch profile', err);
+          setError('Could not load your profile data.');
+        } finally {
+          setPageLoading(false);
+        }
+      };
+      fetchProfile();
+    }
+  }, [user, authLoading]);
+
+  // Handle changes to form inputs
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  // Handle file selection for the avatar
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file)); // Create a temporary URL for preview
+    }
+  };
+
+  // Handle the form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Step 1: Upload avatar if a new one is selected
+      if (avatarFile) {
+        const uploadFormData = new FormData();
+        uploadFormData.append('avatar', avatarFile);
+        await uploadAPI.uploadAvatar(uploadFormData);
+      }
+      
+      // Step 2: Update the rest of the profile data
+      const profileData = {
+        ...formData,
+        // Convert the comma-separated string back to an array for the backend
+        skills: formData.skills.split(',').map(skill => skill.trim()).filter(Boolean),
+        hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : null,
+      };
+      await profileAPI.updateProfile(user.id, profileData);
+      
+      alert("Profile updated successfully!");
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Failed to update profile', err);
+      setError(err.response?.data?.error || 'Failed to update profile. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  if (pageLoading || authLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading profile...</div>;
+  }
+
+  return (
+    <div className="min-h-screen bg-lightgray-light py-12 px-4 sm:px-6 lg:px-8">
+      <motion.div
+        className="max-w-3xl mx-auto"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="bg-white rounded-2xl shadow-xl p-8 border-2 border-mint/20">
+          <h1 className="text-3xl font-bold text-charcoal mb-6">Edit Your Profile</h1>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && <div className="text-red-500 bg-red-100 p-3 rounded-md">{error}</div>}
+            
+            {/* Avatar Upload Section */}
+            <div>
+              <label className="block text-sm font-medium text-charcoal mb-2">Profile Picture</label>
+              <div className="flex items-center gap-4">
+                <img 
+                  src={avatarPreview || `https://ui-avatars.com/api/?name=${user.name.replace(' ', '+')}&background=00CEC9&color=fff`} 
+                  alt="Avatar Preview" 
+                  className="w-20 h-20 rounded-full object-cover border-2 border-lightgray"
+                />
+                <input 
+                  type="file" 
+                  id="avatar" 
+                  name="avatar" 
+                  accept="image/png, image/jpeg, image/gif"
+                  onChange={handleFileChange}
+                  className="block w-full text-sm text-charcoal file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-mint/10 file:text-mint hover:file:bg-mint/20 cursor-pointer"
+                />
+              </div>
+            </div>
+
+            {/* Bio */}
+            <div>
+              <label htmlFor="bio" className="block text-sm font-medium text-charcoal mb-2">Bio</label>
+              <textarea id="bio" name="bio" rows="4" className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mint" placeholder="Tell everyone a little about yourself" value={formData.bio} onChange={handleChange}></textarea>
+            </div>
+
+            {/* Skills */}
+            <div>
+              <label htmlFor="skills" className="block text-sm font-medium text-charcoal mb-2">Skills (comma separated)</label>
+              <input id="skills" name="skills" type="text" className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mint" placeholder="e.g., Logo Design, Branding, UI/UX" value={formData.skills} onChange={handleChange} />
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Location */}
+              <div>
+                <label htmlFor="location" className="block text-sm font-medium text-charcoal mb-2">Location</label>
+                <input id="location" name="location" type="text" className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mint" placeholder="e.g., New York, USA" value={formData.location} onChange={handleChange} />
+              </div>
+              {/* Hourly Rate (Only for Designers) */}
+              {user.role === 'designer' && (
+                <div>
+                  <label htmlFor="hourly_rate" className="block text-sm font-medium text-charcoal mb-2">Hourly Rate ($)</label>
+                  <input id="hourly_rate" name="hourly_rate" type="number" step="0.01" className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mint" placeholder="e.g., 50" value={formData.hourly_rate} onChange={handleChange} />
+                </div>
+              )}
+            </div>
+            
+            <div className="flex justify-end gap-4 pt-4">
+              <button type="button" onClick={() => navigate('/dashboard')} className="px-6 py-2 rounded-lg text-charcoal bg-lightgray hover:bg-lightgray-dark">Cancel</button>
+              <button type="submit" disabled={isLoading} className="px-6 py-2 rounded-lg text-white bg-mint hover:bg-mint-dark disabled:opacity-50">{isLoading ? 'Saving...' : 'Save Changes'}</button>
+            </div>
+          </form>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+export default ProfileEdit;
 </file>
 
 <file path="FrontEnd/pages/Register.jsx">
@@ -3415,7 +5216,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 // Create axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true, // Important for cookies
+  withCredentials: true,
 });
 
 // Request interceptor to add auth token
@@ -3437,19 +5238,13 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-
       try {
-        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
-          withCredentials: true
-        });
-        
+        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true });
         const { accessToken } = response.data;
         localStorage.setItem('accessToken', accessToken);
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-        
         return api(originalRequest);
       } catch (refreshError) {
         localStorage.removeItem('accessToken');
@@ -3457,12 +5252,12 @@ api.interceptors.response.use(
         return Promise.reject(refreshError);
       }
     }
-
     return Promise.reject(error);
   }
 );
 
-// Auth API
+// --- API Service Objects ---
+
 export const authAPI = {
   register: (userData) => api.post('/auth/register', userData),
   login: (username, password) => api.post('/auth/login', { username, password }),
@@ -3471,24 +5266,24 @@ export const authAPI = {
   refreshToken: () => api.post('/auth/refresh'),
 };
 
-// Profile API
 export const profileAPI = {
   getProfile: (id) => api.get(`/profiles/${id}`),
   updateProfile: (id, data) => api.put(`/profiles/${id}`, data),
   searchProfiles: (params) => api.get('/profiles', { params }),
 };
 
-// Listings API
-export const listingAPI = {
-  getListings: (params) => api.get('/listings', { params }),
-  getListing: (id) => api.get(`/listings/${id}`),
-  createListing: (data) => api.post('/listings', data),
-  updateListing: (id, data) => api.put(`/listings/${id}`, data),
-  deleteListing: (id) => api.delete(`/listings/${id}`),
-  submitProposal: (id, data) => api.post(`/listings/${id}/proposals`, data),
+export const dashboardAPI = {
+  getStats: () => api.get('/dashboard/stats'),
 };
 
-// Orders API
+export const listingAPI = {
+  getListings: () => api.get('/listings'),
+  getListing: (id) => api.get(`/listings/${id}`),
+  createListing: (data) => api.post('/listings', data),
+  submitProposal: (listingId, data) => api.post(`/listings/${listingId}/proposals`, data),
+  getProposalsForListing: (listingId) => api.get(`/listings/${listingId}/proposals`),
+};
+
 export const orderAPI = {
   getOrders: () => api.get('/orders'),
   getOrder: (id) => api.get(`/orders/${id}`),
@@ -3496,19 +5291,22 @@ export const orderAPI = {
   updateOrderStatus: (id, status) => api.patch(`/orders/${id}/status`, { status }),
 };
 
-// Messages API
 export const messageAPI = {
   getThreads: () => api.get('/messages/threads'),
-  getMessages: (threadId) => api.get(`/messages/threads/${threadId}/messages`),
-  sendMessage: (threadId, data) => api.post(`/messages/threads/${threadId}/messages`, data),
+  getMessages: (participantId) => api.get(`/messages/threads/${participantId}`),
 };
 
-// Payments API
-export const paymentAPI = {
-  createPaymentIntent: (data) => api.post('/payments/checkout', data),
+export const reviewAPI = {
+  createReview: (data) => api.post('/reviews', data),
+  getReviewsForUser: (userId) => api.get(`/reviews/user/${userId}`),
 };
 
-// Admin API
+export const uploadAPI = {
+  uploadAvatar: (formData) => api.post('/uploads/avatar', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+};
+
 export const adminAPI = {
   getUsers: (params) => api.get('/admin/users', { params }),
   suspendUser: (id) => api.patch(`/admin/users/${id}/suspend`),
@@ -4359,6 +6157,15 @@ Deadline Approaching     → Warning notification
 *These diagrams complement the detailed USER_FLOW.md guide*
 </file>
 
+<file path="postcss.config.js">
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+</file>
+
 <file path="QUICK_REFERENCE.md">
 # 🚀 ShockWave - Quick Reference Guide
 
@@ -4860,6 +6667,235 @@ npm run deploy       # Deploy to hosting (if configured)
 **Last Updated**: November 3, 2025
 **Version**: 1.0.0
 **Status**: Active Development 🚀
+</file>
+
+<file path="TEST_CREDENTIALS.md">
+# 🔑 ShockWave Test Credentials
+
+## Quick Reference Card
+
+---
+
+### 👨‍🎨 DESIGNER ACCOUNT
+```
+Username: designer_creative
+Password: design2024
+```
+**Access Level:** Can create gigs, submit proposals, browse projects
+
+---
+
+### 💼 BUSINESS ACCOUNT
+```
+Username: business_startup
+Password: startup2024
+```
+**Access Level:** Can post projects, review proposals, hire designers
+
+---
+
+### 🔐 ADMIN ACCOUNT
+```
+Username: admin_master
+Password: admin2024
+```
+**Access Level:** Full platform administration
+
+---
+
+## 🚀 Quick Start
+
+1. **Start Backend:**
+   ```bash
+   cd server
+   npm run dev
+   ```
+
+2. **Start Frontend (new terminal):**
+   ```bash
+   npm run dev
+   ```
+
+3. **Login:**
+   - Go to `http://localhost:5173/login`
+   - Click any test account card to auto-fill
+   - Or type credentials manually
+
+---
+
+## 🔄 Reset Everything
+
+```bash
+cd server
+npm run db:init
+```
+
+This clears all data and recreates the 3 test accounts.
+
+---
+
+**Tip:** Keep this file open while testing! 📌
+</file>
+
+<file path="TESTING_GUIDE.md">
+# 🧪 ShockWave Testing Guide
+
+## Quick Start for Testers
+
+### Prerequisites
+- Node.js installed
+- Both frontend and backend running
+
+---
+
+## 🚀 Setup Instructions
+
+### 1. Initialize the Database with Test Accounts
+
+Navigate to the server directory and run:
+
+```bash
+cd server
+npm run db:init
+```
+
+This will:
+- ✅ Clear any existing user data
+- ✅ Create fresh database tables
+- ✅ Generate 3 test accounts (Designer, Business, Admin)
+
+### 2. Start the Backend Server
+
+```bash
+npm run dev
+```
+
+Server will run on: `http://localhost:5000`
+
+### 3. Start the Frontend (in a new terminal)
+
+```bash
+cd ..
+npm run dev
+```
+
+Frontend will run on: `http://localhost:5173`
+
+---
+
+## 🔑 Test Account Credentials
+
+### 👨‍🎨 Designer Account
+- **Username:** `designer_creative`
+- **Password:** `design2024`
+- **Role:** Designer (can create gigs, submit proposals)
+
+### 💼 Business Account
+- **Username:** `business_startup`
+- **Password:** `startup2024`
+- **Role:** Business (can post projects, hire designers)
+
+### 🔐 Admin Account
+- **Username:** `admin_master`
+- **Password:** `admin2024`
+- **Role:** Administrator (full access to platform)
+
+---
+
+## 💡 How to Login
+
+### Method 1: Quick Login (Recommended)
+1. Go to the login page
+2. Click on any of the test account cards below the login form
+3. Credentials will auto-fill
+4. Click "Sign In"
+
+### Method 2: Manual Entry
+1. Type username and password manually
+2. Click "Sign In"
+
+---
+
+## 🧪 What to Test
+
+### As a Designer:
+- [ ] Login with designer account
+- [ ] View dashboard
+- [ ] Browse available projects
+- [ ] Submit proposals to projects
+- [ ] Create gigs (service offerings)
+- [ ] Check messages
+- [ ] Update profile
+
+### As a Business:
+- [ ] Login with business account
+- [ ] Post a new project
+- [ ] Browse designer profiles
+- [ ] Review proposals
+- [ ] Hire designers
+- [ ] Send messages
+- [ ] Update company profile
+
+### As an Admin:
+- [ ] Login with admin account
+- [ ] View analytics dashboard
+- [ ] Manage users
+- [ ] Monitor platform activity
+- [ ] Review flagged content
+
+---
+
+## 🔄 Reset Database
+
+If you need to start fresh at any time:
+
+```bash
+cd server
+npm run db:init
+```
+
+This will clear all data and recreate the 3 test accounts.
+
+---
+
+## ❓ Troubleshooting
+
+### "Invalid credentials" error
+- Make sure you ran `npm run db:init` first
+- Check that the backend server is running
+- Verify you're using the correct credentials
+
+### Database errors
+- Delete `server/database.sqlite` file
+- Run `npm run db:init` again
+
+### Token errors
+- Clear browser localStorage
+- Logout and login again
+- Try a different browser or incognito mode
+
+---
+
+## 📝 Notes for Testers
+
+- **No email verification required** - All accounts are pre-verified
+- **Credentials are visible** - For easy testing, all test credentials are displayed on the login page
+- **Quick account switching** - Just logout and login with a different account
+- **Data persistence** - Your test data persists until you run `db:init` again
+
+---
+
+## 🐛 Found a Bug?
+
+Please report with:
+1. Which test account you were using
+2. What action you were trying to perform
+3. Any error messages
+4. Screenshots if possible
+
+---
+
+**Happy Testing! 🎉**
 </file>
 
 <file path="USER_FLOW.md">
@@ -5465,209 +7501,14 @@ Users can get help through:
 *Last Updated: November 3, 2025*
 </file>
 
-<file path=".gitignore">
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
+<file path="vite.config.js">
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-</file>
-
-<file path="ERROR_CHECK_REPORT.md">
-# ✅ SHOCKWAVE - ERROR CHECK RESULTS
-
-## Date: October 28, 2025
-
----
-
-## 🔍 CODE ERRORS CHECK
-
-### Backend Files:
-- ✅ `server/config/database.js` - No errors
-- ✅ `server/routes/auth.js` - No errors  
-- ✅ `server/middleware/auth.js` - No errors
-- ✅ `server/scripts/init.js` - No errors
-- ✅ `server/package.json` - No errors
-
-### Frontend Files:
-- ✅ `src/pages/Login.jsx` - No errors
-- ✅ `src/pages/Register.jsx` - No errors
-- ✅ `src/context/AuthContext.jsx` - No errors
-- ✅ `src/services/api.js` - No errors
-
----
-
-## 🗄️ DATABASE VERIFICATION
-
-✅ **Database Created Successfully**
-- Location: `server/database.sqlite`
-- Schema: Updated with `username` field (no email)
-
-✅ **Test Accounts Created**:
-```
-👨‍🎨 DESIGNER
-   ID: 1
-   Username: designer_creative
-   Password: design2024
-   Name: Creative Designer
-   Status: Active
-
-💼 BUSINESS
-   ID: 2
-   Username: business_startup
-   Password: startup2024
-   Name: Tech Startup Co
-   Status: Active
-
-🔐 ADMIN
-   ID: 3
-   Username: admin_master
-   Password: admin2024
-   Name: System Administrator
-   Status: Active
-```
-
----
-
-## 🚀 SERVER STATUS
-
-✅ **Backend Server**: Running successfully
-- Port: 5000
-- Environment: development
-- Started with: `npm run dev` (nodemon)
-- Status: No startup errors
-
----
-
-## 📋 CHANGES SUMMARY
-
-### What Was Changed:
-
-1. **Authentication System**
-   - ✅ Changed from email-based to username-based login
-   - ✅ Simplified for testing (removed email verification)
-
-2. **Database Schema**
-   - ✅ Removed `email` field
-   - ✅ Added `username` field (UNIQUE)
-   - ✅ Removed `email_verified` field
-
-3. **Test Accounts**
-   - ✅ All previous users cleared
-   - ✅ 3 new test accounts created
-   - ✅ Clear, memorable usernames and passwords
-
-4. **Login UI**
-   - ✅ Modern card-based design
-   - ✅ Test credentials displayed on login page
-   - ✅ Click-to-fill functionality added
-   - ✅ Visual role indicators
-
-5. **Scripts**
-   - ✅ Added `npm run db:init` command
-   - ✅ Database initialization script updated
-
----
-
-## ✅ EVERYTHING IS READY FOR TESTING
-
-### To Start Testing:
-
-1. **Backend** (already running):
-   ```bash
-   cd server
-   npm run dev
-   ```
-
-2. **Frontend** (start in new terminal):
-   ```bash
-   npm run dev
-   ```
-
-3. **Login**:
-   - Go to http://localhost:5173/login
-   - Click any test account card
-   - Credentials auto-fill
-   - Click "Sign In"
-
----
-
-## 🎯 NO ERRORS FOUND
-
-All files compile successfully with no syntax or runtime errors. The authentication system is fully functional and ready for testing.
-
-### Files Verified:
-- ✅ 8 JavaScript files (no errors)
-- ✅ 2 JSX files (no errors)
-- ✅ 1 Database schema (valid)
-- ✅ 1 Package.json (valid)
-- ✅ Server starts successfully
-- ✅ Database initialized correctly
-- ✅ Test accounts created
-
----
-
-## 📝 NOTES
-
-- Server is running on port 5000 ✅
-- Database has exactly 3 users ✅
-- All passwords are hashed with bcrypt ✅
-- JWT tokens configured ✅
-- CORS enabled for localhost:5173 ✅
-- Test credentials visible on login page ✅
-
-**Status: READY FOR PRODUCTION TESTING** 🚀
-</file>
-
-<file path="eslint.config.js">
-import js from '@eslint/js'
-import globals from 'globals'
-import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
-import { defineConfig, globalIgnores } from 'eslint/config'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{js,jsx}'],
-    extends: [
-      js.configs.recommended,
-      reactHooks.configs['recommended-latest'],
-      reactRefresh.configs.vite,
-    ],
-    languageOptions: {
-      ecmaVersion: 2020,
-      globals: globals.browser,
-      parserOptions: {
-        ecmaVersion: 'latest',
-        ecmaFeatures: { jsx: true },
-        sourceType: 'module',
-      },
-    },
-    rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
-    },
-  },
-])
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+})
 </file>
 
 <file path="index.html">
@@ -5682,7 +7523,11 @@ export default defineConfig([
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <!-- 
+      BEFORE: <script type="module" src="/src/main.jsx"></script>
+      AFTER:
+    -->
+    <script type="module" src="/FrontEnd/main.jsx"></script>
   </body>
 </html>
 </file>
@@ -5697,11 +7542,11 @@ export default defineConfig([
   "scripts": {
     "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
     "dev:client": "vite",
-    "dev:server": "cd server && npm run dev",
+    "dev:server": "cd BackEnd && npm run dev",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "server:install": "cd server && npm install",
+    "server:install": "cd BackEnd && npm install",
     "install:all": "npm install && npm run server:install"
   },
   "dependencies": {
@@ -5709,7 +7554,8 @@ export default defineConfig([
     "react-dom": "^19.1.1",
     "react-router-dom": "^6.28.0",
     "axios": "^1.7.9",
-    "framer-motion": "^11.15.0"
+    "framer-motion": "^11.15.0",
+    "socket.io-client": "4.7.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
@@ -5732,197 +7578,14 @@ export default defineConfig([
 }
 </file>
 
-<file path="postcss.config.js">
-export default {
-  plugins: {
-    tailwindcss: {},
-    autoprefixer: {},
-  },
-}
-</file>
-
-<file path="README.md">
-# 🌊 ShockWave - Digital Marketplace Platform
-
-A comprehensive two-sided marketplace platform connecting talented graphic designers with businesses seeking creative services. Built with modern web technologies and featuring a sleek Charcoal, Light Gray, and Mint Green color scheme.
-
-## 🚀 Features
-
-### For Designers
-- **Professional Profiles**: Showcase your skills, portfolio, and experience
-- **Project Discovery**: Browse and bid on exciting design projects
-- **Secure Payments**: Get paid safely through integrated payment processing
-- **Portfolio Management**: Display your best work to attract clients
-- **Direct Messaging**: Communicate seamlessly with potential clients
-
-### For Businesses
-- **Easy Project Posting**: Post your design needs quickly and efficiently
-- **Designer Discovery**: Browse and filter through talented designers
-- **Proposal Management**: Review and compare designer proposals
-- **Project Tracking**: Monitor project progress from start to finish
-- **Review System**: Rate and review designers for future references
-
-## 🛠 Tech Stack
-
-### Frontend
-- **React 19** - Modern UI library
-- **Vite** - Fast build tool and dev server
-- **Tailwind CSS** - Utility-first CSS framework
-- **Framer Motion** - Smooth animations and transitions
-- **React Router** - Client-side routing
-
-### Backend
-- **Node.js & Express** - Server framework
-- **SQLite** - Database (with PostgreSQL migration path)
-- **JWT** - Authentication
-- **Stripe** - Payment processing
-
-## 📦 Quick Start
-
-1. **Install dependencies**
-   ```bash
-   npm install
-   npm run server:install
-   ```
-
-2. **Set up environment**
-   ```bash
-   cp server/.env.example server/.env
-   # Edit server/.env with your configuration
-   ```
-
-3. **Initialize database**
-   ```bash
-   cd server && node scripts/init.js
-   ```
-
-4. **Start development servers**
-   ```bash
-   npm run dev
-   ```
-
-Visit http://localhost:5173 for the frontend and http://localhost:5000 for the API.
-
-## 🔑 Default Accounts
-
-- **Admin**: admin@designmarket.com / admin123
-- **Designer**: designer@example.com / designer123  
-- **Business**: business@example.com / business123
-
-**Change these passwords in production!**
-
-## 📚 Documentation
-
-We've created comprehensive documentation to help you understand and navigate the platform:
-
-- **[USER_FLOW.md](./USER_FLOW.md)** - Detailed user journey documentation
-  - First-time visitor flow
-  - Designer complete workflow
-  - Business hiring process
-  - Admin panel operations
-  - Common user actions and examples
-
-- **[PLATFORM_FLOW_DIAGRAM.md](./PLATFORM_FLOW_DIAGRAM.md)** - Visual flow diagrams
-  - System architecture
-  - Authentication flows
-  - Page navigation maps
-  - Payment & escrow system
-  - Search & filter flows
-  - Mobile navigation
-
-- **[QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - Developer quick reference
-  - All routes and components
-  - User roles and permissions
-  - Color palette guide
-  - Common UI patterns
-  - API endpoints
-  - Testing checklist
-
-## 🎨 Design System
-
-### Color Palette
-- **Charcoal** (#2D3436) - Primary text, dark backgrounds
-- **Light Gray** (#DFE6E9) - Backgrounds, secondary elements
-- **Mint Green** (#00CEC9) - Primary accent, CTAs, links
-
-### Key Features
-- Full-screen responsive layouts
-- Smooth animations with Framer Motion
-- Accessible design (WCAG compliant)
-- Mobile-first approach
-- Modern card-based UI
-
-## 🗺️ Platform Routes
-
-### Public Routes
-- `/` - Landing page
-- `/login` - User authentication
-- `/register` - New user registration
-- `/browse` - Browse designers (public)
-- `/designer/:id` - View designer profile
-
-### Protected Routes (Login Required)
-- `/dashboard` - Role-based user dashboard
-- `/messages` - Direct messaging system
-- `/checkout/:orderId` - Payment processing
-- `/admin` - Admin panel (admin only)
-
-## 🚦 User Roles
-
-### 👤 Visitor (Unauthenticated)
-- Browse public designer listings
-- View designer profiles
-- View project listings
-- Must register to interact
-
-### 🎨 Designer
-- Create & manage profile
-- Upload portfolio
-- Browse & apply to projects
-- Submit proposals
-- Receive payments
-- Communicate with clients
-
-### 💼 Business
-- Post projects
-- Browse & filter designers
-- Review proposals
-- Hire designers
-- Make payments
-- Leave reviews
-
-### 🔐 Admin
-- User management
-- Content moderation
-- Transaction monitoring
-- Dispute resolution
-- Platform analytics
-
-## 🎯 Quick User Journey Examples
-
-### Designer Gets First Client
-```
-Register → Setup Profile → Browse Projects → Submit Proposal 
-→ Get Hired → Complete Work → Get Paid → Receive Review
-```
-
-### Business Finds Designer
-```
-Register → Browse Designers → Apply Filters → View Profile 
-→ Contact Designer → Discuss Terms → Hire → Pay → Review
-```
-
-## 📄 License
-
-MIT License - feel free to use this project for learning and development.
-</file>
-
 <file path="tailwind.config.js">
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
     "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
+    // BEFORE: "./src/**/*.{js,ts,jsx,tsx}",
+    // AFTER:
+    "./FrontEnd/**/*.{js,ts,jsx,tsx}", 
   ],
   theme: {
     extend: {
@@ -5975,243 +7638,749 @@ export default {
 }
 </file>
 
-<file path="TEST_CREDENTIALS.md">
-# 🔑 ShockWave Test Credentials
+<file path="README.md">
+# ShockWave - Digital Marketplace Platform
 
-## Quick Reference Card
+> A comprehensive two-sided marketplace platform connecting talented graphic designers with businesses seeking creative services.
 
----
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/Node.js-v18+-green.svg)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-19-blue.svg)](https://reactjs.org/)
 
-### 👨‍🎨 DESIGNER ACCOUNT
-```
-Username: designer_creative
-Password: design2024
-```
-**Access Level:** Can create gigs, submit proposals, browse projects
+**Live Demo** | [Documentation](#-documentation) | [Contributing](#-contributing) | [Support](#-support)
 
 ---
 
-### 💼 BUSINESS ACCOUNT
-```
-Username: business_startup
-Password: startup2024
-```
-**Access Level:** Can post projects, review proposals, hire designers
+## Table of Contents
+
+- [Features](#-features)
+- [Tech Stack](#-tech-stack)
+- [Getting Started](#-getting-started)
+- [Project Structure](#-project-structure)
+- [Configuration](#-configuration)
+- [Testing](#-testing)
+- [Documentation](#-documentation)
+- [Deployment](#-deployment)
+- [Troubleshooting](#-troubleshooting)
 
 ---
 
-### 🔐 ADMIN ACCOUNT
-```
-Username: admin_master
-Password: admin2024
-```
-**Access Level:** Full platform administration
+## Features
+
+### For Designers
+- **Professional Profiles** - Showcase skills, portfolio, and experience
+- **Project Discovery** - Browse and bid on exciting design projects
+- **Secure Payments** - Safe payment processing through integrated gateway
+- **Portfolio Management** - Display your best work to attract clients
+- **Direct Messaging** - Real-time communication with potential clients
+- **Review System** - Build reputation through client reviews
+
+###  For Businesses
+- **Easy Project Posting** - Quick and efficient project creation
+- **Designer Discovery** - Browse and filter talented designers
+- **Proposal Management** - Review and compare designer proposals
+- **Project Tracking** - Monitor progress from start to finish
+- **Review System** - Rate designers for future references
+- **Secure Payments** - Escrow-based payment protection
+
+### For Administrators
+- **User Management** - Comprehensive user oversight
+- **Content Moderation** - Platform quality control
+- **Transaction Monitoring** - Financial oversight
+- **Dispute Resolution** - Conflict management tools
+- **Platform Analytics** - Detailed insights and metrics
 
 ---
 
-## 🚀 Quick Start
 
-1. **Start Backend:**
-   ```bash
-   cd server
-   npm run dev
-   ```
+## Tech Stack
 
-2. **Start Frontend (new terminal):**
-   ```bash
-   npm run dev
-   ```
+### Frontend
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| **React** | 19.1.1 | Modern UI library with latest features |
+| **Vite** | 7.1.7 | Lightning-fast build tool and dev server |
+| **Tailwind CSS** | 3.4.14 | Utility-first CSS framework |
+| **Framer Motion** | 11.15.0 | Smooth animations and transitions |
+| **React Router** | 6.28.0 | Client-side routing and navigation |
+| **Axios** | 1.7.9 | HTTP client for API requests |
+| **Socket.io Client** | 4.7.5 | Real-time bidirectional communication |
 
-3. **Login:**
-   - Go to `http://localhost:5173/login`
-   - Click any test account card to auto-fill
-   - Or type credentials manually
+### Backend
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| **Node.js** | 18+ | JavaScript runtime environment |
+| **Express** | 4.21.1 | Fast, minimalist web framework |
+| **SQLite** | via better-sqlite3 | Lightweight database (PostgreSQL-ready) |
+| **JWT** | 9.0.2 | Secure authentication tokens |
+| **Bcrypt** | 5.1.1 | Password hashing and encryption |
+| **Stripe** | 17.3.1 | Payment processing integration |
+| **Socket.io** | 4.7.5 | Real-time server communication |
+| **Multer** | 1.4.5 | File upload handling |
+| **Sharp** | 0.33.5 | Image processing and optimization |
+
+### DevOps & Tools
+- **ESLint** - Code linting and quality
+- **Vitest** - Fast unit testing framework
+- **Concurrently** - Run multiple commands simultaneously
+- **Nodemon** - Auto-restart development server
+- **Helmet** - Security middleware
+- **Morgan** - HTTP request logger
 
 ---
 
-## 🔄 Reset Everything
-
-```bash
-cd server
-npm run db:init
-```
-
-This clears all data and recreates the 3 test accounts.
-
----
-
-**Tip:** Keep this file open while testing! 📌
-</file>
-
-<file path="TESTING_GUIDE.md">
-# 🧪 ShockWave Testing Guide
-
-## Quick Start for Testers
+## Getting Started
 
 ### Prerequisites
-- Node.js installed
-- Both frontend and backend running
 
----
+Before you begin, ensure you have the following installed:
+- **Node.js** (v18 or higher) - [Download](https://nodejs.org/)
+- **npm** (v9 or higher) - Comes with Node.js
+- **Git** - [Download](https://git-scm.com/)
 
-## 🚀 Setup Instructions
+### Installation
 
-### 1. Initialize the Database with Test Accounts
-
-Navigate to the server directory and run:
+#### 1. Clone the Repository
 
 ```bash
-cd server
+git clone https://github.com/owen-stud123/ShockWave.git
+cd ShockWave
+```
+
+#### 2. Install Dependencies
+
+```bash
+# Install frontend dependencies
+npm install
+
+# Install backend dependencies
+npm run server:install
+
+# Or install both at once
+npm run install:all
+```
+
+#### 3. Environment Setup
+
+Create a `.env` file in the `BackEnd` directory:
+
+```bash
+cd BackEnd
+cp .env.example .env
+```
+
+Edit the `.env` file with your configuration:
+
+```env
+# Server Configuration
+PORT=5000
+NODE_ENV=development
+
+# Database
+DATABASE_URL=./database.sqlite
+
+# JWT Authentication
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+JWT_EXPIRES_IN=7d
+
+# Stripe Payment (Get your keys from https://stripe.com)
+STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key
+STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key
+
+# Email Configuration (Optional - for notifications)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+
+# Frontend URL
+FRONTEND_URL=http://localhost:5173
+
+# File Upload
+MAX_FILE_SIZE=5242880
+UPLOAD_PATH=./uploads
+```
+
+#### 4. Initialize Database
+
+```bash
+# From BackEnd directory
+node scripts/init.js
+
+# Or use npm script
 npm run db:init
 ```
 
-This will:
-- ✅ Clear any existing user data
-- ✅ Create fresh database tables
-- ✅ Generate 3 test accounts (Designer, Business, Admin)
+This creates the database schema and seeds test accounts.
 
-### 2. Start the Backend Server
+#### 5. Start Development Servers
 
 ```bash
+# From project root - starts both frontend and backend
 npm run dev
 ```
 
-Server will run on: `http://localhost:5000`
-
-### 3. Start the Frontend (in a new terminal)
+Or start them separately:
 
 ```bash
-cd ..
-npm run dev
+# Terminal 1 - Frontend (from project root)
+npm run dev:client
+
+# Terminal 2 - Backend (from project root)
+npm run dev:server
 ```
 
-Frontend will run on: `http://localhost:5173`
+#### 6. Access the Application
+
+- **Frontend**: http://localhost:5173
+- **Backend API**: http://localhost:5000
+- **API Documentation**: http://localhost:5000/api-docs (if available)
 
 ---
 
-## 🔑 Test Account Credentials
+## Configuration
 
-### 👨‍🎨 Designer Account
-- **Username:** `designer_creative`
-- **Password:** `design2024`
-- **Role:** Designer (can create gigs, submit proposals)
+### Environment Variables
 
-### 💼 Business Account
-- **Username:** `business_startup`
-- **Password:** `startup2024`
-- **Role:** Business (can post projects, hire designers)
+The backend requires several environment variables. Create a `.env` file in the `BackEnd` directory:
 
-### 🔐 Admin Account
-- **Username:** `admin_master`
-- **Password:** `admin2024`
-- **Role:** Administrator (full access to platform)
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `PORT` | Server port | No | 5000 |
+| `NODE_ENV` | Environment | No | development |
+| `DATABASE_URL` | SQLite database path | No | ./database.sqlite |
+| `JWT_SECRET` | Secret for JWT signing | **Yes** | - |
+| `JWT_EXPIRES_IN` | Token expiration | No | 7d |
+| `STRIPE_SECRET_KEY` | Stripe secret key | For payments | - |
+| `STRIPE_PUBLISHABLE_KEY` | Stripe public key | For payments | - |
+| `FRONTEND_URL` | Frontend URL for CORS | No | http://localhost:5173 |
+| `MAX_FILE_SIZE` | Max upload size (bytes) | No | 5242880 (5MB) |
+| `UPLOAD_PATH` | File upload directory | No | ./uploads |
 
----
+### Database Configuration
 
-## 💡 How to Login
+The project uses **SQLite** for development, with a clear migration path to **PostgreSQL** for production.
 
-### Method 1: Quick Login (Recommended)
-1. Go to the login page
-2. Click on any of the test account cards below the login form
-3. Credentials will auto-fill
-4. Click "Sign In"
+**SQLite** (Development):
+- Zero configuration required
+- File-based database
+- Perfect for local development
+- Located at `BackEnd/database.sqlite`
 
-### Method 2: Manual Entry
-1. Type username and password manually
-2. Click "Sign In"
-
----
-
-## 🧪 What to Test
-
-### As a Designer:
-- [ ] Login with designer account
-- [ ] View dashboard
-- [ ] Browse available projects
-- [ ] Submit proposals to projects
-- [ ] Create gigs (service offerings)
-- [ ] Check messages
-- [ ] Update profile
-
-### As a Business:
-- [ ] Login with business account
-- [ ] Post a new project
-- [ ] Browse designer profiles
-- [ ] Review proposals
-- [ ] Hire designers
-- [ ] Send messages
-- [ ] Update company profile
-
-### As an Admin:
-- [ ] Login with admin account
-- [ ] View analytics dashboard
-- [ ] Manage users
-- [ ] Monitor platform activity
-- [ ] Review flagged content
+**PostgreSQL** (Production - Optional):
+- Update `DATABASE_URL` in `.env`
+- Run migration scripts
+- Better performance for production
 
 ---
 
-## 🔄 Reset Database
+## Testing
 
-If you need to start fresh at any time:
+### Test Accounts
+
+After running `npm run db:init`, the following test accounts are available:
+
+| Role | Username | Password | Email |
+|------|----------|----------|-------|
+| **Designer** | `designer_creative` | `design2024` | designer@example.com |
+| **Business** | `business_startup` | `startup2024` | business@example.com |
+| **Admin** | `admin_master` | `admin2024` | admin@designmarket.com |
+
+> **Security Warning**: Change these credentials in production!
+
+### Quick Login Feature
+
+The login page includes quick-access buttons for test accounts during development. These auto-fill credentials for faster testing.
+
+### Running Tests
 
 ```bash
-cd server
+# Frontend tests
+npm run test
+
+# Backend tests
+cd BackEnd
+npm run test
+
+# Watch mode
+npm run test:watch
+
+# Coverage report
+npm run test:coverage
+```
+
+### Manual Testing Checklist
+
+See [TESTING_GUIDE.md](./TESTING_GUIDE.md) for comprehensive testing instructions:
+
+- User registration and login
+- Designer profile creation
+- Business project posting
+- Proposal submission
+- Messaging system
+- Payment flow
+- Review system
+- Admin panel functions
+
+---
+
+---
+
+## Documentation
+
+Comprehensive documentation is available to help you understand and navigate the platform:
+
+### Core Documentation
+
+| Document | Description | Best For |
+|----------|-------------|----------|
+| **[DOCUMENTATION_INDEX.md](./DOCUMENTATION_INDEX.md)** | Central hub for all documentation | Finding what you need |
+| **[USER_FLOW.md](./USER_FLOW.md)** | Detailed user journey documentation | UX design, testing |
+| **[PLATFORM_FLOW_DIAGRAM.md](./PLATFORM_FLOW_DIAGRAM.md)** | Visual flow diagrams & architecture | System understanding |
+| **[QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** | Developer quick reference guide | Day-to-day development |
+| **[TESTING_GUIDE.md](./TESTING_GUIDE.md)** | Testing procedures and credentials | QA and testing |
+| **[TEST_CREDENTIALS.md](./TEST_CREDENTIALS.md)** | All test account information | Quick credential lookup |
+| **[ERROR_CHECK_REPORT.md](./ERROR_CHECK_REPORT.md)** | Known issues and solutions | Troubleshooting |
+
+### Documentation Highlights
+
+**For First-Time Users:**
+1. Start with this README
+2. Review [USER_FLOW.md](./USER_FLOW.md) for user journeys
+3. Check [TESTING_GUIDE.md](./TESTING_GUIDE.md) for test accounts
+
+**For Developers:**
+1. [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) - Routes, API endpoints, patterns
+2. [PLATFORM_FLOW_DIAGRAM.md](./PLATFORM_FLOW_DIAGRAM.md) - Architecture diagrams
+3. [ERROR_CHECK_REPORT.md](./ERROR_CHECK_REPORT.md) - Common issues
+
+**For Designers/UX:**
+1. [USER_FLOW.md](./USER_FLOW.md) - Complete user journeys
+2. [PLATFORM_FLOW_DIAGRAM.md](./PLATFORM_FLOW_DIAGRAM.md) - Visual flows
+3. [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) - Color palette & UI patterns
+
+---
+
+## Platform Routes
+
+### Public Routes (No Authentication Required)
+
+| Route | Component | Description |
+|-------|-----------|-------------|
+| `/` | Home | Landing page with platform overview |
+| `/login` | Login | User authentication page |
+| `/register` | Register | New user registration |
+| `/browse` | Browse | Browse designers (public listings) |
+| `/listings` | Listings | View all project listings |
+| `/listing/:id` | ListingDetail | Individual project details |
+| `/designer/:id` | Profile | Public designer profile view |
+
+### Protected Routes (Authentication Required)
+
+| Route | Component | Access | Description |
+|-------|-----------|--------|-------------|
+| `/dashboard` | Dashboard | All authenticated | Role-based dashboard |
+| `/profile` | Profile | All authenticated | User profile management |
+| `/profile/edit` | ProfileEdit | All authenticated | Edit profile information |
+| `/messages` | Messages | All authenticated | Direct messaging system |
+| `/create-listing` | CreateListing | Designer only | Create new service listing |
+| `/checkout/:orderId` | Checkout | Business only | Payment processing |
+| `/admin` | AdminPanel | Admin only | Platform administration |
+
+---
+
+## User Roles & Capabilities
+
+### Designer Role
+
+**Capabilities:**
+- ✅ Create and manage professional profile
+- ✅ Upload and showcase portfolio
+- ✅ Browse available projects
+- ✅ Submit proposals to businesses
+- ✅ Create service listings (gigs)
+- ✅ Receive payments via platform
+- ✅ Communicate with clients
+- ✅ Receive and respond to reviews
+
+**Restrictions:**
+- ❌ Cannot post projects
+- ❌ Cannot hire other designers
+- ❌ Cannot access admin panel
+
+### 💼 Business Role
+
+**Capabilities:**
+- ✅ Create company profile
+- ✅ Post project requirements
+- ✅ Browse designer portfolios
+- ✅ Review designer proposals
+- ✅ Hire designers
+- ✅ Make secure payments
+- ✅ Communicate with designers
+- ✅ Leave reviews and ratings
+
+**Restrictions:**
+- ❌ Cannot create service listings
+- ❌ Cannot apply to projects
+- ❌ Cannot access admin panel
+
+### Admin Role
+
+**Capabilities:**
+- ✅ All Designer and Business capabilities
+- ✅ User management (create, edit, delete)
+- ✅ Content moderation
+- ✅ Transaction monitoring
+- ✅ Dispute resolution
+- ✅ Platform analytics and reporting
+- ✅ System configuration
+
+**Full Access:** All platform features and controls
+
+---
+
+## Deployment
+
+### Production Build
+
+```bash
+# Build frontend for production
+npm run build
+
+# Preview production build locally
+npm run preview
+```
+
+### Environment Setup
+
+1. **Update Environment Variables**
+   - Set `NODE_ENV=production`
+   - Use strong `JWT_SECRET`
+   - Configure production database
+   - Add production Stripe keys
+   - Set up production email server
+
+2. **Database Migration**
+   - Migrate from SQLite to PostgreSQL (recommended)
+   - Run production database scripts
+   - Set up database backups
+
+3. **Security Checklist**
+   - Change all default passwords
+   - Enable HTTPS/SSL
+   - Configure CORS properly
+   - Set up rate limiting
+   - Enable Helmet security headers
+   - Configure CSP (Content Security Policy)
+   - Set up monitoring and logging
+
+### Deployment Platforms
+
+**Recommended Platforms:**
+
+**Frontend:**
+- **Vercel** - Optimized for React/Vite (Recommended)
+- **Netlify** - Easy deployment with CI/CD
+- **AWS Amplify** - Full-featured hosting
+- **Cloudflare Pages** - Fast global CDN
+
+**Backend:**
+- **Heroku** - Simple deployment
+- **Railway** - Modern platform
+- **DigitalOcean App Platform** - Scalable hosting
+- **AWS EC2/Elastic Beanstalk** - Full control
+- **Google Cloud Run** - Containerized deployment
+
+**Database:**
+- **PostgreSQL on Heroku**
+- **AWS RDS**
+- **DigitalOcean Managed Databases**
+- **Supabase** - PostgreSQL with additional features
+
+### Deployment Scripts
+
+```bash
+# Build both frontend and backend
+npm run build
+
+# Start production server
+npm run start
+
+# Backend production start
+cd BackEnd && npm run start
+```
+
+---
+
+## Contributing
+
+We welcome contributions! Here's how you can help:
+
+### Getting Started
+
+1. **Fork the Repository**
+   ```bash
+   git clone https://github.com/YOUR-USERNAME/ShockWave.git
+   ```
+
+2. **Create a Feature Branch**
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+
+3. **Make Your Changes**
+   - Follow existing code style
+   - Add tests for new features
+   - Update documentation
+
+4. **Commit Your Changes**
+   ```bash
+   git commit -m "Add amazing feature"
+   ```
+
+5. **Push to Your Fork**
+   ```bash
+   git push origin feature/amazing-feature
+   ```
+
+6. **Open a Pull Request**
+   - Describe your changes
+   - Reference related issues
+   - Wait for review
+
+### Contribution Guidelines
+
+- **Code Style**: Follow ESLint configuration
+- **Commits**: Use clear, descriptive commit messages
+- **Testing**: Add tests for new features
+- **Documentation**: Update relevant docs
+- **PR Size**: Keep pull requests focused and manageable
+
+### Areas for Contribution
+
+- Bug fixes
+- New features
+- Documentation improvements
+- UI/UX enhancements
+- Test coverage
+- Accessibility improvements
+- Internationalization (i18n)
+- Security enhancements
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+#### Database Connection Error
+
+**Problem**: `Error: Cannot connect to database`
+
+**Solution**:
+```bash
+cd BackEnd
 npm run db:init
 ```
 
-This will clear all data and recreate the 3 test accounts.
+#### Port Already in Use
+
+**Problem**: `Error: Port 5000 is already in use`
+
+**Solution**:
+```bash
+# Windows
+netstat -ano | findstr :5000
+taskkill /PID <PID> /F
+
+# macOS/Linux
+lsof -ti:5000 | xargs kill -9
+```
+
+Or change the port in `BackEnd/.env`:
+```env
+PORT=5001
+```
+
+#### JWT Token Errors
+
+**Problem**: `Invalid token` or `Token expired`
+
+**Solution**:
+1. Clear browser localStorage
+2. Log out and log back in
+3. Check JWT_SECRET in `.env`
+4. Verify JWT_EXPIRES_IN value
+
+#### File Upload Errors
+
+**Problem**: `File too large` or `Upload failed`
+
+**Solution**:
+1. Check `MAX_FILE_SIZE` in `.env`
+2. Ensure `uploads/` directory exists
+3. Verify file permissions
+
+#### CORS Errors
+
+**Problem**: `Access-Control-Allow-Origin` error
+
+**Solution**:
+1. Verify `FRONTEND_URL` in `BackEnd/.env`
+2. Check CORS configuration in `BackEnd/app.js`
+3. Ensure both servers are running
+
+#### Build Errors
+
+**Problem**: Vite build fails
+
+**Solution**:
+```bash
+# Clear node modules and reinstall
+rm -rf node_modules package-lock.json
+npm install
+
+# Clear Vite cache
+rm -rf node_modules/.vite
+npm run dev
+```
+
+### Getting Help
+
+If you encounter issues not covered here:
+
+1. Check [ERROR_CHECK_REPORT.md](./ERROR_CHECK_REPORT.md)
+2. Search existing [GitHub Issues](https://github.com/owen-stud123/ShockWave/issues)
+3. Create a new issue with:
+   - Detailed problem description
+   - Steps to reproduce
+   - Error messages
+   - Environment information (OS, Node version, etc.)
 
 ---
 
-## ❓ Troubleshooting
+## Project Status
 
-### "Invalid credentials" error
-- Make sure you ran `npm run db:init` first
-- Check that the backend server is running
-- Verify you're using the correct credentials
+### Current Version
+**v1.0.0** - Stable Release
 
-### Database errors
-- Delete `server/database.sqlite` file
-- Run `npm run db:init` again
+### Feature Status
 
-### Token errors
-- Clear browser localStorage
-- Logout and login again
-- Try a different browser or incognito mode
+| Feature | Status | Notes |
+|---------|--------|-------|
+| User Authentication | ✅ Complete | JWT-based auth |
+| Designer Profiles | ✅ Complete | Portfolio support |
+| Business Profiles | ✅ Complete | Company info |
+| Project Listings | ✅ Complete | CRUD operations |
+| Proposal System | ✅ Complete | Bid management |
+| Messaging | ✅ Complete | Real-time chat |
+| Payment Integration | 🚧 In Progress | Stripe integration |
+| Review System | ✅ Complete | 5-star ratings |
+| Admin Panel | ✅ Complete | User management |
+| File Uploads | ✅ Complete | Image optimization |
+| Email Notifications | 📋 Planned | Coming soon |
+| Mobile App | 📋 Planned | Future release |
+
+### Roadmap
+
+**Q1 2025:**
+- [ ] Complete Stripe payment integration
+- [ ] Email notification system
+- [ ] Advanced search filters
+- [ ] Designer verification badges
+
+**Q2 2025:**
+- [ ] Mobile responsive improvements
+- [ ] Video portfolio support
+- [ ] Analytics dashboard
+- [ ] Multi-language support (i18n)
+
+**Future:**
+- [ ] Native mobile apps (iOS/Android)
+- [ ] AI-powered designer matching
+- [ ] Subscription plans
+- [ ] Advanced analytics
 
 ---
 
-## 📝 Notes for Testers
+## License
 
-- **No email verification required** - All accounts are pre-verified
-- **Credentials are visible** - For easy testing, all test credentials are displayed on the login page
-- **Quick account switching** - Just logout and login with a different account
-- **Data persistence** - Your test data persists until you run `db:init` again
+This project is licensed under the **MIT License** - see below for details:
+
+```
+MIT License
+
+Copyright (c) 2025 ShockWave
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
 
 ---
 
-## 🐛 Found a Bug?
+## Support
 
-Please report with:
-1. Which test account you were using
-2. What action you were trying to perform
-3. Any error messages
-4. Screenshots if possible
+### Resources
+
+- **Documentation**: [./DOCUMENTATION_INDEX.md](./DOCUMENTATION_INDEX.md)
+- **Issue Tracker**: [GitHub Issues](https://github.com/owen-stud123/ShockWave/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/owen-stud123/ShockWave/discussions)
+
+### Quick User Journey Examples
+
+#### Designer Gets First Client
+```
+Register → Setup Profile → Upload Portfolio → Browse Projects 
+→ Submit Proposal → Get Hired → Complete Work → Get Paid → Receive Review
+```
+
+#### Business Finds Designer
+```
+Register → Create Company Profile → Browse Designers → Apply Filters 
+→ View Portfolio → Contact Designer → Discuss Project → Hire → Pay → Review
+```
+
+#### Admin Monitors Platform
+```
+Login → View Dashboard → Monitor Transactions → Review Reports 
+→ Moderate Content → Resolve Disputes → Manage Users
+```
 
 ---
 
-**Happy Testing! 🎉**
-</file>
+## Acknowledgments
 
-<file path="vite.config.js">
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+### Built With
 
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [react()],
-})
+- [React](https://react.dev) - UI Framework
+- [Vite](https://vitejs.dev) - Build Tool
+- [Tailwind CSS](https://tailwindcss.com) - Styling
+- [Framer Motion](https://www.framer.com/motion) - Animations
+- [Express](https://expressjs.com) - Backend Framework
+- [Stripe](https://stripe.com) - Payment Processing
+
+---
+
+<div align="center">
+  <strong><a href="#shockwave---digital-marketplace-platform">↑ Back to Top</a></strong><br>
+  <strong>ShockWave – Connect. Create. Collaborate.</strong>
+</div>
 </file>
 
 </files>

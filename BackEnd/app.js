@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
@@ -11,7 +10,7 @@ import http from 'http';
 import { Server } from 'socket.io';
 import db from './config/database.js';
 
-// Import routes
+// Import routes and middleware...
 import authRoutes from './routes/authRoutes.js';
 import profileRoutes from './routes/profileRoutes.js';
 import listingRoutes from './routes/listingsRoutes.js';
@@ -21,50 +20,47 @@ import paymentRoutes from './routes/paymentsRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
-import reviewsRoutes from './routes/reviewsRoutes.js'; // <-- ADD THIS MISSING IMPORT
-
-// Import middleware
+import reviewsRoutes from './routes/reviewsRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { authenticateToken } from './middleware/auth.js';
 
-// Load environment variables
 dotenv.config();
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const app = express();
 const server = http.createServer(app);
+
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  process.env.CLIENT_URL
+].filter(Boolean);
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+};
+
 const io = new Server(server, {
-  cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
-    methods: ["GET", "POST"],
-    credentials: true
-  }
+  cors: corsOptions,
+  transports: ['polling', 'websocket']
 });
 
 const PORT = process.env.PORT || 5000;
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: 'Too many requests from this IP, please try again later.'
-});
-
-// Middleware
-app.use(helmet());
-app.use(morgan('combined'));
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
-  credentials: true
-}));
-app.use(limiter);
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+app.use(cors(corsOptions));
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100, message: 'Too many requests' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // API Routes
@@ -77,22 +73,65 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/admin', authenticateToken, adminRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/uploads', uploadRoutes);
-app.use('/api/reviews', reviewsRoutes); // This line now works because of the import
+app.use('/api/reviews', reviewsRoutes);
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString(), version: '1.0.0' });
-});
+app.get('/api/health', (req, res) => res.json({ status: 'OK' }));
 
-// Socket.IO Connection Logic
+// --- THIS IS THE DEFINITIVE FIX FOR SOCKETS ---
 io.on('connection', (socket) => {
-  // ... (socket logic is correct)
+  console.log('🔌 A user connected:', socket.id);
+  socket.on('join_room', (userId) => {
+    socket.join(userId.toString());
+  });
+
+  socket.on('send_message', (data) => {
+    try {
+      const { sender_id, recipient_id, body } = data;
+      if (!sender_id || !recipient_id || !body) {
+        console.error('Socket Event Error: Invalid message data received:', data);
+        return;
+      }
+      
+      const thread_id = [sender_id, recipient_id].sort().join('-');
+      const createdAt = new Date().toISOString();
+      
+      const stmt = db.prepare(`
+        INSERT INTO messages (thread_id, sender_id, recipient_id, body, created_at, is_read)
+        VALUES (@thread_id, @sender_id, @recipient_id, @body, @created_at, @is_read)
+      `);
+      
+      const result = stmt.run({
+        thread_id: thread_id,
+        sender_id: sender_id,
+        recipient_id: recipient_id,
+        body: body,
+        created_at: createdAt,
+        is_read: 0
+      });
+
+      if (result.changes === 0) {
+        throw new Error("Database INSERT failed, no rows were changed.");
+      }
+      
+      const newMessage = db.prepare('SELECT * FROM messages WHERE id = ?').get(result.lastInsertRowid);
+
+      if (newMessage) {
+        io.to(recipient_id.toString()).emit('receive_message', newMessage);
+        io.to(sender_id.toString()).emit('receive_message', newMessage);
+      }
+    } catch (error) {
+      console.error('!!! CRITICAL FAILURE in "send_message" event:', error);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('🔥 A user disconnected:', socket.id);
+  });
 });
 
-// Error handling middleware
+
 app.use(errorHandler);
 
-// Start server
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);

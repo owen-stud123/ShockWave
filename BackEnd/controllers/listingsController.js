@@ -6,7 +6,6 @@ import db from '../config/database.js';
 // @access  Public
 export const getAllListings = (req, res, next) => {
   try {
-    // Basic query, can be expanded with pagination and filters
     const listings = db.prepare(`
       SELECT l.*, u.name as owner_name 
       FROM listings l
@@ -79,7 +78,6 @@ export const createProposal = (req, res, next) => {
     const designer_id = req.user.id;
     const { message, price_offered, delivery_time } = req.body;
 
-    // Check if designer has already submitted a proposal
     const existingProposal = db.prepare(
       'SELECT id FROM proposals WHERE listing_id = ? AND designer_id = ?'
     ).get(listing_id, designer_id);
@@ -95,6 +93,45 @@ export const createProposal = (req, res, next) => {
 
     res.status(201).json({ message: 'Proposal submitted successfully' });
   } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get all proposals for a specific listing
+// @route   GET /api/listings/:id/proposals
+// @access  Private (Listing Owner only)
+export const getProposalsForListing = (req, res, next) => {
+  try {
+    const listingId = req.params.id;
+    const userId = req.user.id;
+
+    // First, verify that the current user owns this listing
+    const listing = db.prepare('SELECT owner_id FROM listings WHERE id = ?').get(listingId);
+    if (!listing || listing.owner_id !== userId) {
+      return res.status(403).json({ error: 'You are not authorized to view proposals for this listing.' });
+    }
+
+    // If authorized, fetch all proposals and join with user/profile data
+    const proposals = db.prepare(`
+      SELECT
+        prop.id,
+        prop.designer_id,
+        prop.message,
+        prop.price_offered,
+        prop.delivery_time,
+        prop.created_at,
+        u.name as designer_name,
+        p.avatar_url as designer_avatar
+      FROM proposals prop
+      JOIN users u ON prop.designer_id = u.id
+      LEFT JOIN profiles p ON u.id = p.user_id
+      WHERE prop.listing_id = ?
+      ORDER BY prop.created_at DESC
+    `).all(listingId);
+
+    res.json(proposals);
+  } catch (error) {
+    console.error("Error fetching proposals:", error);
     next(error);
   }
 };
