@@ -20,8 +20,8 @@ const ListingDetail = () => {
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // State for review simulation
-  const [isProjectComplete, setIsProjectComplete] = useState(false); 
+  // --- FIX: State for a potential order object when project is complete ---
+  const [completedOrder, setCompletedOrder] = useState(null); 
   const [hasAlreadyReviewed, setHasAlreadyReviewed] = useState(false);
 
   useEffect(() => {
@@ -36,6 +36,14 @@ const ListingDetail = () => {
         if (isAuthenticated && user?.id === res.data.owner_id) {
           const proposalsRes = await listingAPI.getProposalsForListing(id);
           setProposals(proposalsRes.data);
+          
+          if (res.data.status === 'completed') {
+             
+            setCompletedOrder({
+                id: 123, // Placeholder order ID
+                seller_id: proposalsRes.data[0]?.designer_id || null // The designer to be reviewed
+            });
+          }
         }
       } catch (error) {
         console.error('Failed to fetch listing data:', error);
@@ -73,9 +81,8 @@ const ListingDetail = () => {
   };
 
   const handleAcceptProposal = (proposalId) => {
-    // In a real app, this would trigger a backend endpoint.
     alert(`(Simulated) Accepting proposal ID: ${proposalId}. This will create an order and notify the designer.`);
-    // Example: await orderAPI.createFromProposal(proposalId);
+    
   };
 
   if (loading) {
@@ -86,23 +93,14 @@ const ListingDetail = () => {
   }
 
   const isOwner = isAuthenticated && user?.id === listing.owner_id;
-  const showReviewForm = isOwner && isProjectComplete && !hasAlreadyReviewed;
-  const showProposalForm = isAuthenticated && user.role === 'designer' && !isOwner;
+  // show the review form ---
+  const showReviewForm = isOwner && listing.status === 'completed' && completedOrder && !hasAlreadyReviewed;
+  const showProposalForm = isAuthenticated && user.role === 'designer' && !isOwner && listing.status === 'open';
   const SERVER_BASE_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
 
   return (
     <div className="min-h-screen bg-lightgray-light">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {isOwner && (
-            <div className="mb-4 bg-yellow-100 p-4 rounded-lg text-yellow-800 border border-yellow-300">
-            <p className="font-bold">Developer Simulation Panel</p>
-            <label className="flex items-center mt-2 cursor-pointer">
-                <input type="checkbox" checked={isProjectComplete} onChange={() => setIsProjectComplete(!isProjectComplete)} />
-                <span className="ml-2 text-sm">Simulate "Project Complete" to show review form.</span>
-            </label>
-            </div>
-        )}
-
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-lg shadow-lg p-8">
           <div className="border-b pb-6 mb-6">
             <h1 className="text-4xl font-bold text-charcoal">{listing.title}</h1>
@@ -117,6 +115,10 @@ const ListingDetail = () => {
               <div className="bg-lightgray-light p-6 rounded-lg">
                 <h3 className="text-xl font-semibold text-charcoal mb-4">Project Details</h3>
                 <div className="space-y-3">
+                   <div>
+                    <p className="text-sm text-charcoal-light">Status</p>
+                    <p className="font-semibold text-lg capitalize">{listing.status}</p>
+                  </div>
                   <div>
                     <p className="text-sm text-charcoal-light">Budget</p>
                     <p className="font-semibold text-mint text-lg">${listing.budget_min} - ${listing.budget_max}</p>
@@ -131,7 +133,7 @@ const ListingDetail = () => {
           </div>
         </motion.div>
         
-        {isOwner && (
+        {isOwner && listing.status !== 'completed' && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{delay: 0.1}} className="bg-white rounded-lg shadow-lg p-8 mt-8">
             <h2 className="text-2xl font-semibold text-charcoal mb-6">Received Proposals ({proposals.length})</h2>
             <div className="space-y-6">
@@ -202,8 +204,8 @@ const ListingDetail = () => {
         
         {showReviewForm && (
           <ReviewForm 
-            orderId={1}
-            revieweeId={1}
+            orderId={completedOrder.id}
+            revieweeId={completedOrder.seller_id}
             onReviewSubmitted={handleReviewSubmitted}
           />
         )}

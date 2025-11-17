@@ -5,7 +5,10 @@ import {
   loginUser,
   refreshToken,
   logoutUser,
-  getMe
+  getMe,
+  verifyEmail,
+  forgotPassword,
+  resetPassword
 } from '../controllers/authController.js';
 import { authenticateToken } from '../middleware/auth.js';
 
@@ -13,22 +16,36 @@ const router = express.Router();
 
 // Validation middleware
 const registerValidation = [
-  body('username').isLength({ min: 3 }).trim(),
-  body('password').isLength({ min: 6 }),
-  body('name').notEmpty().trim(),
-  body('role').isIn(['designer', 'business'])
+  body('email').isEmail().withMessage('Please enter a valid email').normalizeEmail(),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
+  body('name').notEmpty().withMessage('Name is required').trim(),
+  body('role').isIn(['designer', 'business']).withMessage('Invalid role selected')
 ];
 
 const loginValidation = [
-  body('username').notEmpty().trim(),
+  body('email').isEmail().normalizeEmail(),
   body('password').notEmpty()
+];
+
+const forgotPasswordValidation = [
+  body('email').isEmail().withMessage('Please enter a valid email').normalizeEmail()
+];
+
+const resetPasswordValidation = [
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long')
 ];
 
 // Routes
 router.post('/register', registerValidation, registerUser);
 router.post('/login', loginValidation, loginUser);
 router.post('/refresh', refreshToken);
-router.post('/logout', logoutUser);
+router.post('/logout', authenticateToken, logoutUser);
 router.get('/me', authenticateToken, getMe);
+
+// Email Verification and Password Reset
+router.post('/verify-email/:token', verifyEmail);
+router.post('/forgot-password', forgotPasswordValidation, forgotPassword);
+router.post('/reset-password/:token', resetPasswordValidation, resetPassword);
+
 
 export default router;

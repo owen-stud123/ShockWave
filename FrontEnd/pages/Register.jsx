@@ -6,38 +6,42 @@ import { motion } from 'framer-motion';
 const Register = () => {
   const [formData, setFormData] = useState({
     name: '',
-    username: '',
+    email: '',
     password: '',
     confirmPassword: '',
-    role: 'designer'
+    role: '' // Start with no role selected
   });
+  const [step, setStep] = useState(1); // Step 1 for role selection, Step 2 for form
   const [isLoading, setIsLoading] = useState(false);
-  const { register, error } = useAuth();
-  const navigate = useNavigate();
+  const { register } = useAuth();
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+
+  const handleRoleSelect = (role) => {
+    setFormData({ ...formData, role });
+    setStep(2);
+  };
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    setError('');
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
-
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match');
-      setIsLoading(false);
+      setError('Passwords do not match');
       return;
     }
-
+    setIsLoading(true);
+    setError('');
+    setMessage('');
     try {
       const { confirmPassword, ...userData } = formData;
-      await register(userData);
-      navigate('/dashboard');
-    } catch (error) {
-      console.error('Registration failed:', error);
+      const res = await register(userData);
+      setMessage(res.message);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Registration failed.');
     } finally {
       setIsLoading(false);
     }
@@ -45,121 +49,21 @@ const Register = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-lightgray-light via-white to-mint/5 py-12 px-4 sm:px-6 lg:px-8">
-      <motion.div 
-        className="max-w-md w-full"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
+      <motion.div className="max-w-md w-full" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <div className="bg-white rounded-2xl shadow-xl p-8 border-2 border-mint/20">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-charcoal mb-2">
-              Create Account
-            </h2>
-            <p className="text-sm text-charcoal-light">
-              Join ShockWave Digital Marketplace
-            </p>
-          </div>
           
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {error && (
-              <motion.div 
-                className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-              >
-                {error}
-              </motion.div>
-            )}
-            
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-charcoal mb-2">Full Name</label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                required
-                className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mint focus:border-transparent transition-all"
-                placeholder="Enter your full name"
-                value={formData.name}
-                onChange={handleChange}
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-charcoal mb-2">Username</label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                required
-                className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mint focus:border-transparent transition-all"
-                placeholder="Choose a username"
-                value={formData.username}
-                onChange={handleChange}
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="role" className="block text-sm font-medium text-charcoal mb-2">I am a</label>
-              <select
-                id="role"
-                name="role"
-                className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mint focus:border-transparent transition-all bg-white"
-                value={formData.role}
-                onChange={handleChange}
-              >
-                <option value="designer">Designer</option>
-                <option value="business">Business</option>
-              </select>
-            </div>
-            
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-charcoal mb-2">Password</label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mint focus:border-transparent transition-all"
-                placeholder="Create a password"
-                value={formData.password}
-                onChange={handleChange}
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-charcoal mb-2">Confirm Password</label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                required
-                className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mint focus:border-transparent transition-all"
-                placeholder="Confirm your password"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-mint text-white py-3 rounded-lg font-medium hover:bg-mint-dark focus:outline-none focus:ring-2 focus:ring-mint focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02]"
-            >
-              {isLoading ? (
-                <span className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Creating account...
-                </span>
-              ) : (
-                'Create Account'
-              )}
-            </button>
-          </form>
+          {message ? (
+              <div className="text-center">
+                  <h2 className="text-2xl font-bold text-charcoal mb-4">Registration Successful!</h2>
+                  <p className="text-charcoal-light">{message}</p>
+                  <Link to="/login" className="mt-6 inline-block bg-mint text-white py-2 px-4 rounded-lg">Proceed to Login</Link>
+              </div>
+          ) : (
+            <>
+              {step === 1 && <RoleSelection onSelect={handleRoleSelect} />}
+              {step === 2 && <RegistrationForm formData={formData} onChange={handleChange} onSubmit={handleSubmit} isLoading={isLoading} error={error} setStep={setStep} />}
+            </>
+          )}
 
           <div className="mt-6 text-center">
             <p className="text-sm text-charcoal-light">
@@ -174,5 +78,50 @@ const Register = () => {
     </div>
   );
 };
+
+const RoleSelection = ({ onSelect }) => (
+  <div className="text-center">
+    <h2 className="text-3xl font-bold text-charcoal mb-2">Join ShockWave</h2>
+    <p className="text-sm text-charcoal-light mb-8">First, tell us who you are.</p>
+    <div className="space-y-4">
+      <button onClick={() => onSelect('designer')} className="w-full text-left p-6 border-2 border-lightgray-dark rounded-lg hover:border-mint group">
+        <h3 className="font-bold text-lg text-charcoal group-hover:text-mint">I'm a Designer</h3>
+        <p className="text-charcoal-light">Looking for projects and to showcase my work.</p>
+      </button>
+      <button onClick={() => onSelect('business')} className="w-full text-left p-6 border-2 border-lightgray-dark rounded-lg hover:border-mint group">
+        <h3 className="font-bold text-lg text-charcoal group-hover:text-mint">I'm a Business</h3>
+        <p className="text-charcoal-light">Looking to hire talented designers for projects.</p>
+      </button>
+    </div>
+  </div>
+);
+
+const RegistrationForm = ({ formData, onChange, onSubmit, isLoading, error, setStep }) => (
+  <>
+    <button onClick={() => setStep(1)} className="text-sm text-mint mb-4">&larr; Back to role selection</button>
+    <div className="text-center mb-8">
+        <h2 className="text-3xl font-bold text-charcoal mb-2">Create Your {formData.role === 'designer' ? 'Designer' : 'Business'} Account</h2>
+        <p className="text-sm text-charcoal-light">Let's get you started.</p>
+    </div>
+    <form onSubmit={onSubmit} className="space-y-5">
+      {error && <div className="bg-red-100 text-red-700 p-3 rounded-md text-sm">{error}</div>}
+      <input type="hidden" name="role" value={formData.role} />
+      <InputField label="Full Name" name="name" type="text" value={formData.name} onChange={onChange} placeholder="Enter your full name" />
+      <InputField label="Email" name="email" type="email" value={formData.email} onChange={onChange} placeholder="you@example.com" />
+      <InputField label="Password" name="password" type="password" value={formData.password} onChange={onChange} placeholder="Create a password (min 6 chars)" />
+      <InputField label="Confirm Password" name="confirmPassword" type="password" value={formData.confirmPassword} onChange={onChange} placeholder="Confirm your password" />
+      <button type="submit" disabled={isLoading} className="w-full bg-mint text-white py-3 rounded-lg font-medium hover:bg-mint-dark disabled:opacity-50">
+        {isLoading ? 'Creating account...' : 'Create Account'}
+      </button>
+    </form>
+  </>
+);
+
+const InputField = ({ label, name, type, value, onChange, placeholder }) => (
+    <div>
+        <label htmlFor={name} className="block text-sm font-medium text-charcoal mb-2">{label}</label>
+        <input id={name} name={name} type={type} required value={value} onChange={onChange} placeholder={placeholder} className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mint" />
+    </div>
+);
 
 export default Register;

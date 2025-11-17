@@ -1,70 +1,87 @@
-import db, { initializeDatabase } from '../config/database.js';
-import bcrypt from 'bcrypt';
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import connectDB from '../config/database.js';
 
-// Initialize database
-initializeDatabase();
+// Load Models
+import User from '../models/userModel.js';
+import Listing from '../models/listingModel.js';
+import Proposal from '../models/proposalModel.js';
+import Order from '../models/orderModel.js';
+import Message from '../models/messageModel.js';
+import Review from '../models/reviewModel.js';
+import PortfolioItem from '../models/portfolioItemModel.js';
+import Invoice from '../models/invoiceModel.js';
 
-// Clear all existing users (for fresh start)
-const clearDatabase = () => {
+dotenv.config();
+
+const clearDatabase = async () => {
   try {
     console.log('🗑️  Clearing existing data...');
-    db.prepare('DELETE FROM profiles').run();
-    db.prepare('DELETE FROM users').run();
+    // Order matters for logs, but not for Mongo's parallel deletion
+    await Invoice.deleteMany({});
+    await Review.deleteMany({});
+    await Message.deleteMany({});
+    await Order.deleteMany({});
+    await Proposal.deleteMany({});
+    await PortfolioItem.deleteMany({});
+    await Listing.deleteMany({});
+    await User.deleteMany({});
     console.log('✅ Database cleared');
   } catch (error) {
     console.error('❌ Error clearing database:', error);
+    process.exit(1);
   }
 };
 
-// Create test accounts
 const createTestAccounts = async () => {
   try {
     console.log('👥 Creating test accounts...\n');
 
     const accounts = [
       {
-        username: 'designer_creative',
-        password: 'design2024',
+        email: 'designer@creative.com',
+        password_hash: 'design2024',
         name: 'Creative Designer',
         role: 'designer',
-        bio: 'Professional designer specializing in branding and visual identity.',
-        skills: '["Logo Design", "Branding", "UI/UX", "Illustration"]'
+        is_email_verified: true,
+        profile: {
+          bio: 'Professional designer specializing in branding and visual identity. Over 10 years of experience.',
+          skills: ['Logo Design', 'Branding', 'UI/UX', 'Illustration'],
+          location: 'New York, USA',
+          hourly_rate: 75,
+        },
       },
       {
-        username: 'business_startup',
-        password: 'startup2024',
+        email: 'business@startup.com',
+        password_hash: 'startup2024',
         name: 'Tech Startup Co',
         role: 'business',
-        bio: 'Growing tech company looking for talented designers.',
-        skills: '[]'
+        is_email_verified: true,
+        profile: {
+          bio: 'Growing tech company looking for talented designers to help us build the next big thing.',
+        },
       },
       {
-        username: 'admin_master',
-        password: 'admin2024',
+        email: 'admin@shockwave.com',
+        password_hash: 'admin2024',
         name: 'System Administrator',
         role: 'admin',
-        bio: 'Platform administrator.',
-        skills: '["Platform Management"]'
-      }
+        is_email_verified: true,
+        profile: {
+          bio: 'Platform administrator.',
+          skills: ['Platform Management'],
+        },
+      },
     ];
 
     for (const account of accounts) {
-      const passwordHash = await bcrypt.hash(account.password, 12);
+      // The password will be hashed by the pre-save middleware in the User model
+      const user = new User(account);
+      await user.save();
       
-      const result = db.prepare(`
-        INSERT INTO users (username, password_hash, name, role, is_active)
-        VALUES (?, ?, ?, ?, 1)
-      `).run(account.username, passwordHash, account.name, account.role);
-
-      // Create profile
-      db.prepare(`
-        INSERT INTO profiles (user_id, bio, skills, portfolio_urls, social_links)
-        VALUES (?, ?, ?, '[]', '{}')
-      `).run(result.lastInsertRowid, account.bio, account.skills);
-
       console.log(`✅ Created ${account.role.toUpperCase()} account:`);
-      console.log(`   Username: ${account.username}`);
-      console.log(`   Password: ${account.password}`);
+      console.log(`   Email: ${account.email}`);
+      console.log(`   Password: ${account.password_hash}`); // Note: this is the plain text before hashing
       console.log(`   Name: ${account.name}\n`);
     }
 
@@ -72,27 +89,29 @@ const createTestAccounts = async () => {
     console.log('🎉 TEST ACCOUNTS READY FOR TESTING');
     console.log('═══════════════════════════════════════════');
     console.log('\n📋 DESIGNER ACCOUNT:');
-    console.log('   Username: designer_creative');
+    console.log('   Email: designer@creative.com');
     console.log('   Password: design2024');
     console.log('\n💼 BUSINESS ACCOUNT:');
-    console.log('   Username: business_startup');
+    console.log('   Email: business@startup.com');
     console.log('   Password: startup2024');
     console.log('\n🔐 ADMIN ACCOUNT:');
-    console.log('   Username: admin_master');
+    console.log('   Email: admin@shockwave.com');
     console.log('   Password: admin2024');
     console.log('\n═══════════════════════════════════════════\n');
 
   } catch (error) {
     console.error('❌ Error creating test accounts:', error);
+    process.exit(1);
   }
 };
 
-// Run initialization
 const init = async () => {
-  console.log('\n🚀 Initializing ShockWave Digital Marketplace...\n');
-  clearDatabase();
+  console.log('\n🚀 Initializing ShockWave Digital Marketplace with MongoDB...\n');
+  await connectDB();
+  await clearDatabase();
   await createTestAccounts();
   console.log('✅ Initialization complete!\n');
+  await mongoose.disconnect();
   process.exit(0);
 };
 

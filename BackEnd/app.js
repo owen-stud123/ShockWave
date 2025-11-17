@@ -8,7 +8,11 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import { Server } from 'socket.io';
-import db from './config/database.js';
+
+// --- (MODIFICATION 1): IMPORT MONGOOSE AND THE MESSAGE MODEL ---
+import mongoose from 'mongoose';
+import connectDB from './config/database.js';
+import Message from './models/messageModel.js';
 
 // Import routes and middleware...
 import authRoutes from './routes/authRoutes.js';
@@ -25,6 +29,10 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { authenticateToken } from './middleware/auth.js';
 
 dotenv.config();
+
+// --- (MODIFICATION 2): CONNECT TO MONGODB AT STARTUP ---
+connectDB(); 
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
@@ -77,14 +85,16 @@ app.use('/api/reviews', reviewsRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'OK' }));
 
-// --- THIS IS THE DEFINITIVE FIX FOR SOCKETS ---
+// --- (MODIFICATION 3): THIS IS THE DEFINITIVE FIX FOR SOCKETS, NOW USING MONGOOSE ---
 io.on('connection', (socket) => {
   console.log('🔌 A user connected:', socket.id);
+  
   socket.on('join_room', (userId) => {
+    console.log(`User ${userId} joined room: ${userId}`);
     socket.join(userId.toString());
   });
 
-  socket.on('send_message', (data) => {
+  socket.on('send_message', async (data) => {
     try {
       const { sender_id, recipient_id, body } = data;
       if (!sender_id || !recipient_id || !body) {
@@ -93,32 +103,32 @@ io.on('connection', (socket) => {
       }
       
       const thread_id = [sender_id, recipient_id].sort().join('-');
-      const createdAt = new Date().toISOString();
       
-      const stmt = db.prepare(`
-        INSERT INTO messages (thread_id, sender_id, recipient_id, body, created_at, is_read)
-        VALUES (@thread_id, @sender_id, @recipient_id, @body, @created_at, @is_read)
-      `);
-      
-      const result = stmt.run({
+      const newMessage = new Message({
         thread_id: thread_id,
-        sender_id: sender_id,
-        recipient_id: recipient_id,
+        sender: sender_id,
+        recipient: recipient_id,
         body: body,
-        created_at: createdAt,
-        is_read: 0
       });
 
-      if (result.changes === 0) {
-        throw new Error("Database INSERT failed, no rows were changed.");
-      }
+      await newMessage.save();
       
-      const newMessage = db.prepare('SELECT * FROM messages WHERE id = ?').get(result.lastInsertRowid);
+      // --- THIS IS THE FIX ---
+      // Construct the object with the exact fields the frontend expects ('sender_id', etc.)
+      const messageForClient = {
+          id: newMessage._id.toHexString(),
+          thread_id: newMessage.thread_id,
+          sender_id: newMessage.sender.toHexString(),
+          recipient_id: newMessage.recipient.toHexString(),
+          body: newMessage.body,
+          created_at: newMessage.created_at,
+      };
 
-      if (newMessage) {
-        io.to(recipient_id.toString()).emit('receive_message', newMessage);
-        io.to(sender_id.toString()).emit('receive_message', newMessage);
-      }
+      // Emit the correctly structured object to both users
+      io.to(recipient_id.toString()).emit('receive_message', messageForClient);
+      io.to(sender_id.toString()).emit('receive_message', messageForClient);
+      console.log(`Message sent from ${sender_id} to ${recipient_id}`);
+
     } catch (error) {
       console.error('!!! CRITICAL FAILURE in "send_message" event:', error);
     }
@@ -128,7 +138,6 @@ io.on('connection', (socket) => {
     console.log('🔥 A user disconnected:', socket.id);
   });
 });
-
 
 app.use(errorHandler);
 

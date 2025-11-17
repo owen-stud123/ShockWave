@@ -1,6 +1,7 @@
-import db from '../config/database.js';
+import Message from '../models/messageModel.js';
+import User from '../models/userModel.js';
 
-// Helper function (no changes)
+// Helper function
 const generateThreadId = (userId1, userId2) => {
   return [userId1, userId2].sort().join('-');
 };
@@ -8,73 +9,43 @@ const generateThreadId = (userId1, userId2) => {
 // @desc    Get all message threads for the logged-in user
 // @route   GET /api/messages/threads
 // @access  Private
-export const getMessageThreads = (req, res, next) => {
-  // --- ULTIMATE DEBUGGING VERSION ---
-  console.log('\n\n--- [ULTIMATE DEBUG] GETTING MESSAGE THREADS ---');
+export const getMessageThreads = async (req, res, next) => {
   try {
     if (!req.user) {
-      console.error('[DEBUG] FATAL: req.user is missing. User is not authenticated.');
       return res.status(401).json({ error: 'Not authenticated' });
     }
     const userId = req.user.id;
-    console.log(`[DEBUG] Authenticated user ID is: ${userId}`);
 
-    // Step 1: Get ALL messages from the database to inspect them.
-    const allMessages = db.prepare('SELECT * FROM messages').all();
-    console.log(`[DEBUG] Found a total of ${allMessages.length} messages in the entire database.`);
-    // console.log(allMessages); // Uncomment this line if you need to see every single message
+    // Get all unique thread_ids where user is sender or recipient
+    const allMessages = await Message.find({
+      $or: [{ sender: userId }, { recipient: userId }]
+    })
+    .sort({ created_at: -1 })
+    .populate('sender recipient', 'name')
+    .lean();
 
-    // Step 2: Manually filter messages in JavaScript to find ones involving our user.
-    const userMessages = allMessages.filter(m => m.sender_id === userId || m.recipient_id === userId);
-    console.log(`[DEBUG] Found ${userMessages.length} messages involving user ${userId}.`);
-
-    if (userMessages.length === 0) {
-      console.log('[DEBUG] No messages found for this user. Sending empty array to frontend.');
-      console.log('--- [ULTIMATE DEBUG] END ---');
-      return res.json([]);
-    }
-
-    // Step 3: Group messages by thread_id.
-    const threadsMap = new Map();
-    for (const message of userMessages) {
-      if (!threadsMap.has(message.thread_id)) {
-        threadsMap.set(message.thread_id, []);
-      }
-      threadsMap.get(message.thread_id).push(message);
-    }
-    console.log(`[DEBUG] Grouped messages into ${threadsMap.size} unique conversation threads.`);
-
-    // Step 4: Process each thread to get the final data structure.
-    const threads = [];
-    for (const [threadId, messagesInThread] of threadsMap.entries()) {
-      // Sort to find the last message
-      messagesInThread.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-      const lastMessage = messagesInThread[0];
-      
-      const participantId = (lastMessage.sender_id === userId) ? lastMessage.recipient_id : lastMessage.sender_id;
-      
-      const participant = db.prepare('SELECT id, name FROM users WHERE id = ?').get(participantId);
-
-      if (participant) {
-        threads.push({
-          thread_id: threadId,
-          last_message: lastMessage.body,
-          last_message_date: lastMessage.created_at,
-          participant_id: participant.id,
-          participant_name: participant.name,
+    // Group by thread_id and get the latest message for each
+    const threadMap = new Map();
+    allMessages.forEach(msg => {
+      if (!threadMap.has(msg.thread_id)) {
+        const participant_id = msg.sender._id.toString() === userId.toString() 
+          ? msg.recipient._id 
+          : msg.sender._id;
+        const participant_name = msg.sender._id.toString() === userId.toString()
+          ? msg.recipient.name
+          : msg.sender.name;
+        
+        threadMap.set(msg.thread_id, {
+          thread_id: msg.thread_id,
+          participant_id,
+          participant_name,
+          last_message: msg.body,
+          last_message_date: msg.created_at
         });
-      } else {
-        console.warn(`[DEBUG] Could not find participant with ID: ${participantId} for thread: ${threadId}`);
       }
-    }
+    });
 
-    // Final sort
-    threads.sort((a, b) => new Date(b.last_message_date) - new Date(a.last_message_date));
-    
-    console.log(`[DEBUG] Successfully processed ${threads.length} threads to send to frontend.`);
-    console.log(threads);
-    console.log('--- [ULTIMATE DEBUG] END ---');
-    
+    const threads = Array.from(threadMap.values());
     res.json(threads);
   } catch (error) {
     console.error("CRITICAL ERROR in getMessageThreads:", error);
@@ -82,7 +53,27 @@ export const getMessageThreads = (req, res, next) => {
   }
 };
 
-// getMessagesInThread function remains the same
-export const getMessagesInThread = (req, res, next) => {
-  // ... (no changes needed here)
+// Get all messages within a specific thread (with a participant)
+
+export const getMessagesInThread = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+        const participantId = req.params.participantId;
+        const thread_id = generateThreadId(userId, participantId);
+
+        const messages = await Message.find({ thread_id })
+          .sort({ created_at: 1 })
+          .lean();
+
+        // Mark messages as read
+        await Message.updateMany(
+          { thread_id, recipient: userId, is_read: false },
+          { is_read: true }
+        );
+
+        res.json(messages);
+    } catch (error) {
+        console.error("Error in getMessagesInThread:", error);
+        next(error);
+    }
 };

@@ -22,10 +22,17 @@ export const errorHandler = (err, req, res, next) => {
     });
   }
 
-  // Database errors
-  if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+  // MongoDB errors
+  if (err.code === 11000) { // Duplicate key error
     return res.status(409).json({
       error: 'Resource already exists'
+    });
+  }
+
+  // Mongoose validation errors
+  if (err.name === 'CastError') {
+    return res.status(400).json({
+      error: 'Invalid ID format'
     });
   }
 

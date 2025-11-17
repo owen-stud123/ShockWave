@@ -10,12 +10,16 @@ import Profile from './pages/Profile';
 import ProfileEdit from './pages/ProfileEdit.jsx';
 import Dashboard from './pages/Dashboard';
 import Messages from './pages/Messages';
-import Listings from './pages/Listings.jsx'; // Import Listings page
-import CreateListing from './pages/CreateListing.jsx'; // Import Create Listing page
+import Listings from './pages/Listings.jsx';
+import CreateListing from './pages/CreateListing.jsx';
 import ListingDetail from './pages/ListingDetail';
 import Checkout from './pages/Checkout';
 import AdminPanel from './pages/AdminPanel';
-import PrivateRoute from './components/PrivateRoute'; 
+import PrivateRoute from './components/PrivateRoute';
+import SavedProjects from './pages/SavedProjects';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import Invoices from './pages/Invoices';
 import { motion } from 'framer-motion';
 import './styles/App.css';
 
@@ -37,9 +41,11 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password/:token" element={<ResetPassword />} />
               <Route path="/browse" element={<Browse />} />
               <Route path="/designer/:id" element={<Profile />} />
-              <Route path="/listings" element={<Listings />} /> {/* Add Listings page route */}
+              <Route path="/listings" element={<Listings />} />
               <Route path="/listing/:id" element={<ListingDetail />} />
 
               {/* Protected Routes */}
@@ -47,10 +53,16 @@ function App() {
               <Route path="/messages" element={<PrivateRoute><Messages /></PrivateRoute>} />
               <Route path="/profile/edit" element={<PrivateRoute><ProfileEdit /></PrivateRoute>} />
               <Route path="/checkout/:orderId" element={<PrivateRoute><Checkout /></PrivateRoute>} />
-              <Route path="/listings/new" element={<PrivateRoute roles={['business']}><CreateListing /></PrivateRoute>} /> {/* Add Create Listing route */}
+              <Route path="/invoices" element={<PrivateRoute><Invoices /></PrivateRoute>} />
+              
+              {/* Designer Routes */}
+              <Route path="/projects/saved" element={<PrivateRoute roles={['designer']}><SavedProjects /></PrivateRoute>} />
+              
+              {/* Business Routes */}
+              <Route path="/listings/new" element={<PrivateRoute roles={['business']}><CreateListing /></PrivateRoute>} />
               
               {/* Admin Route */}
-              <Route path="/admin" element={
+              <Route path="/admin/*" element={
                 <PrivateRoute roles={['admin']}><AdminPanel /></PrivateRoute>
               } />
             </Routes>

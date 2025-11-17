@@ -1,19 +1,27 @@
 import { validationResult } from 'express-validator';
-import db from '../config/database.js';
+import Listing from '../models/listingModel.js';
+import Proposal from '../models/proposalModel.js';
+import User from '../models/userModel.js';
 
 // @desc    Get all listings
 // @route   GET /api/listings
 // @access  Public
-export const getAllListings = (req, res, next) => {
+export const getAllListings = async (req, res, next) => {
   try {
-    const listings = db.prepare(`
-      SELECT l.*, u.name as owner_name 
-      FROM listings l
-      JOIN users u ON l.owner_id = u.id
-      WHERE l.status = 'open' 
-      ORDER BY l.created_at DESC
-    `).all();
-    res.json(listings);
+    const listings = await Listing.find({ status: 'open' })
+      .populate('owner', 'name')
+      .sort({ createdAt: -1 })
+      .lean();
+    
+    // Transform to match expected format
+    const formattedListings = listings.map(listing => ({
+      ...listing,
+      owner_name: listing.owner?.name,
+      created_at: listing.createdAt,
+      updated_at: listing.updatedAt
+    }));
+    
+    res.json(formattedListings);
   } catch (error) {
     next(error);
   }
@@ -22,19 +30,25 @@ export const getAllListings = (req, res, next) => {
 // @desc    Get a single listing by ID
 // @route   GET /api/listings/:id
 // @access  Public
-export const getListingById = (req, res, next) => {
+export const getListingById = async (req, res, next) => {
   try {
-    const listing = db.prepare(`
-      SELECT l.*, u.name as owner_name 
-      FROM listings l
-      JOIN users u ON l.owner_id = u.id
-      WHERE l.id = ?
-    `).get(req.params.id);
+    const listing = await Listing.findById(req.params.id)
+      .populate('owner', 'name')
+      .lean();
 
     if (!listing) {
       return res.status(404).json({ error: 'Listing not found' });
     }
-    res.json(listing);
+    
+    // Transform to match expected format
+    const formattedListing = {
+      ...listing,
+      owner_name: listing.owner?.name,
+      created_at: listing.createdAt,
+      updated_at: listing.updatedAt
+    };
+    
+    res.json(formattedListing);
   } catch (error) {
     next(error);
   }
@@ -43,7 +57,7 @@ export const getListingById = (req, res, next) => {
 // @desc    Create a new listing
 // @route   POST /api/listings
 // @access  Private (Business only)
-export const createListing = (req, res, next) => {
+export const createListing = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -51,14 +65,21 @@ export const createListing = (req, res, next) => {
     }
 
     const { title, description, budget_min, budget_max, deadline, tags } = req.body;
-    const owner_id = req.user.id;
+    const owner = req.user.id;
 
-    const result = db.prepare(`
-      INSERT INTO listings (owner_id, title, description, budget_min, budget_max, deadline, tags)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(owner_id, title, description, budget_min, budget_max, deadline, JSON.stringify(tags || []));
+    const listing = new Listing({
+      owner,
+      title,
+      description,
+      budget_min,
+      budget_max,
+      deadline,
+      tags: tags || []
+    });
+
+    await listing.save();
     
-    res.status(201).json({ id: result.lastInsertRowid, message: 'Listing created successfully' });
+    res.status(201).json({ id: listing.id, message: 'Listing created successfully' });
   } catch (error) {
     next(error);
   }
@@ -67,29 +88,32 @@ export const createListing = (req, res, next) => {
 // @desc    Submit a proposal to a listing
 // @route   POST /api/listings/:id/proposals
 // @access  Private (Designer only)
-export const createProposal = (req, res, next) => {
+export const createProposal = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const listing_id = req.params.id;
-    const designer_id = req.user.id;
+    const listing = req.params.id;
+    const designer = req.user.id;
     const { message, price_offered, delivery_time } = req.body;
 
-    const existingProposal = db.prepare(
-      'SELECT id FROM proposals WHERE listing_id = ? AND designer_id = ?'
-    ).get(listing_id, designer_id);
+    const existingProposal = await Proposal.findOne({ listing, designer });
 
     if (existingProposal) {
       return res.status(409).json({ error: 'You have already submitted a proposal for this listing.' });
     }
 
-    db.prepare(`
-      INSERT INTO proposals (listing_id, designer_id, message, price_offered, delivery_time)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(listing_id, designer_id, message, price_offered, delivery_time);
+    const proposal = new Proposal({
+      listing,
+      designer,
+      message,
+      price_offered,
+      delivery_time
+    });
+
+    await proposal.save();
 
     res.status(201).json({ message: 'Proposal submitted successfully' });
   } catch (error) {
@@ -100,36 +124,35 @@ export const createProposal = (req, res, next) => {
 // @desc    Get all proposals for a specific listing
 // @route   GET /api/listings/:id/proposals
 // @access  Private (Listing Owner only)
-export const getProposalsForListing = (req, res, next) => {
+export const getProposalsForListing = async (req, res, next) => {
   try {
     const listingId = req.params.id;
     const userId = req.user.id;
 
     // First, verify that the current user owns this listing
-    const listing = db.prepare('SELECT owner_id FROM listings WHERE id = ?').get(listingId);
-    if (!listing || listing.owner_id !== userId) {
+    const listing = await Listing.findById(listingId).select('owner');
+    if (!listing || listing.owner.toString() !== userId.toString()) {
       return res.status(403).json({ error: 'You are not authorized to view proposals for this listing.' });
     }
 
-    // If authorized, fetch all proposals and join with user/profile data
-    const proposals = db.prepare(`
-      SELECT
-        prop.id,
-        prop.designer_id,
-        prop.message,
-        prop.price_offered,
-        prop.delivery_time,
-        prop.created_at,
-        u.name as designer_name,
-        p.avatar_url as designer_avatar
-      FROM proposals prop
-      JOIN users u ON prop.designer_id = u.id
-      LEFT JOIN profiles p ON u.id = p.user_id
-      WHERE prop.listing_id = ?
-      ORDER BY prop.created_at DESC
-    `).all(listingId);
+    // If authorized, fetch all proposals with populated designer data
+    const proposals = await Proposal.find({ listing: listingId })
+      .populate('designer', 'name')
+      .sort({ createdAt: -1 })
+      .lean();
 
-    res.json(proposals);
+    // Transform to match expected format
+    const formattedProposals = proposals.map(prop => ({
+      id: prop._id,
+      designer_id: prop.designer._id,
+      designer_name: prop.designer.name,
+      message: prop.message,
+      price_offered: prop.price_offered,
+      delivery_time: prop.delivery_time,
+      created_at: prop.createdAt
+    }));
+
+    res.json(formattedProposals);
   } catch (error) {
     console.error("Error fetching proposals:", error);
     next(error);

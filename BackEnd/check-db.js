@@ -1,23 +1,40 @@
-import Database from 'better-sqlite3';
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import connectDB from './config/database.js';
+import User from './models/userModel.js';
 
-const db = new Database('./database.sqlite');
+dotenv.config();
 
-console.log('\n✅ DATABASE VERIFICATION\n');
-console.log('═══════════════════════════════════════════\n');
+const verifyDatabase = async () => {
+  try {
+    // Connect to the database
+    await connectDB();
+    console.log('\n✅ DATABASE VERIFICATION\n');
+    console.log('═══════════════════════════════════════════\n');
 
-const users = db.prepare('SELECT id, username, name, role, is_active FROM users').all();
+    // Fetch all users
+    const users = await User.find({}).select('id username name role is_active');
 
-console.log(`📊 Total Users: ${users.length}\n`);
+    console.log(`📊 Total Users: ${users.length}\n`);
 
-users.forEach(user => {
-  console.log(`${user.role === 'designer' ? '👨‍🎨' : user.role === 'business' ? '💼' : '🔐'} ${user.role.toUpperCase()}`);
-  console.log(`   ID: ${user.id}`);
-  console.log(`   Username: ${user.username}`);
-  console.log(`   Name: ${user.name}`);
-  console.log(`   Active: ${user.is_active ? 'Yes' : 'No'}`);
-  console.log('');
-});
+    users.forEach(user => {
+      console.log(`${user.role === 'designer' ? '👨‍🎨' : user.role === 'business' ? '💼' : '🔐'} ${user.role.toUpperCase()}`);
+      console.log(`   ID: ${user.id}`);
+      console.log(`   Username: ${user.username}`);
+      console.log(`   Name: ${user.name}`);
+      console.log(`   Active: ${user.is_active ? 'Yes' : 'No'}`);
+      console.log('');
+    });
 
-console.log('═══════════════════════════════════════════\n');
+    console.log('═══════════════════════════════════════════\n');
+  } catch (error) {
+    console.error('❌ Database verification failed:', error);
+  } finally {
+    // Disconnect from the database
+    await mongoose.disconnect();
+    console.log('MongoDB connection closed.');
+    process.exit(0);
+  }
+};
 
-db.close();
+verifyDatabase();

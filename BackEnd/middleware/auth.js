@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import db from '../config/database.js';
+import User from '../models/userModel.js';
 
 export const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -9,19 +9,21 @@ export const authenticateToken = (req, res, next) => {
     return res.status(401).json({ error: 'Access token required' });
   }
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+  jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
     if (err) {
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
 
     // Get user from database
-    const user = db.prepare('SELECT id, username, role, name FROM users WHERE id = ? AND is_active = 1').get(decoded.userId);
+    const user = await User.findOne({ _id: decoded.userId, is_active: true })
+      .select('id username role name')
+      .lean();
     
     if (!user) {
       return res.status(403).json({ error: 'User not found or inactive' });
     }
 
-    req.user = user;
+    req.user = { id: user._id.toString(), username: user.username, role: user.role, name: user.name };
     next();
   });
 };
@@ -48,11 +50,13 @@ export const optionalAuth = (req, res, next) => {
     return next();
   }
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+  jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
     if (!err) {
-      const user = db.prepare('SELECT id, username, role, name FROM users WHERE id = ? AND is_active = 1').get(decoded.userId);
+      const user = await User.findOne({ _id: decoded.userId, is_active: true })
+        .select('id username role name')
+        .lean();
       if (user) {
-        req.user = user;
+        req.user = { id: user._id.toString(), username: user.username, role: user.role, name: user.name };
       }
     }
     next();
