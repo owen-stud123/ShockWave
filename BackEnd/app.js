@@ -25,7 +25,6 @@ import reviewsRoutes from './routes/reviewsRoutes.js';
 import invoiceRoutes from './routes/invoiceRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { authenticateToken, requireRole } from './middleware/auth.js';
-import messagesRoutes from './routes/messagesRoutes.js';
 
 dotenv.config();
 connectDB(); 
@@ -65,7 +64,6 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/reviews', reviewsRoutes);
 app.use('/api/invoices', invoiceRoutes);
-app.use('/api/messages', messagesRoutes);
 app.get('/api/health', (req, res) => res.json({ status: 'OK' }));
 
 io.on('connection', (socket) => { /* Socket logic remains */ });

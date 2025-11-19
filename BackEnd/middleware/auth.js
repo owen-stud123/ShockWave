@@ -16,14 +16,14 @@ export const authenticateToken = (req, res, next) => {
 
     // Get user from database
     const user = await User.findOne({ _id: decoded.userId, is_active: true })
-      .select('id username role name')
+      .select('role name email')
       .lean();
     
     if (!user) {
       return res.status(403).json({ error: 'User not found or inactive' });
     }
 
-    req.user = { id: user._id.toString(), username: user.username, role: user.role, name: user.name };
+    req.user = { id: user._id.toString(), email: user.email, role: user.role, name: user.name };
     next();
   });
 };
@@ -53,10 +53,10 @@ export const optionalAuth = (req, res, next) => {
   jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
     if (!err) {
       const user = await User.findOne({ _id: decoded.userId, is_active: true })
-        .select('id username role name')
+        .select('role name email')
         .lean();
       if (user) {
-        req.user = { id: user._id.toString(), username: user.username, role: user.role, name: user.name };
+        req.user = { id: user._id.toString(), email: user.email, role: user.role, name: user.name };
       }
     }
     next();
