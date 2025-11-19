@@ -13,9 +13,9 @@ export const getAllListings = async (req, res, next) => {
       .sort({ createdAt: -1 })
       .lean();
     
-    // Transform to match expected format
     const formattedListings = listings.map(listing => ({
       ...listing,
+      id: listing._id,
       owner_name: listing.owner?.name,
       created_at: listing.createdAt,
       updated_at: listing.updatedAt
@@ -40,16 +40,18 @@ export const getListingById = async (req, res, next) => {
       return res.status(404).json({ error: 'Listing not found' });
     }
     
-    // Transform to match expected format
     const formattedListing = {
       ...listing,
+      id: listing._id,
+      owner_id: listing.owner._id,
       owner_name: listing.owner?.name,
       created_at: listing.createdAt,
       updated_at: listing.updatedAt
     };
     
     res.json(formattedListing);
-  } catch (error) {
+  } catch (error)
+ {
     next(error);
   }
 };
@@ -95,27 +97,18 @@ export const createProposal = async (req, res, next) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const listing = req.params.id;
-    const designer = req.user.id;
     const { message, price_offered, delivery_time } = req.body;
 
-    const existingProposal = await Proposal.findOne({ listing, designer });
-
-    if (existingProposal) {
-      return res.status(409).json({ error: 'You have already submitted a proposal for this listing.' });
-    }
-
     const proposal = new Proposal({
-      listing,
-      designer,
+      listing: req.params.id,
+      designer: req.user.id,
       message,
       price_offered,
       delivery_time
     });
 
     await proposal.save();
-
-    res.status(201).json({ message: 'Proposal submitted successfully' });
+    res.status(201).json({ message: 'Proposal submitted successfully', proposal });
   } catch (error) {
     next(error);
   }
@@ -126,35 +119,88 @@ export const createProposal = async (req, res, next) => {
 // @access  Private (Listing Owner only)
 export const getProposalsForListing = async (req, res, next) => {
   try {
-    const listingId = req.params.id;
-    const userId = req.user.id;
-
-    // First, verify that the current user owns this listing
-    const listing = await Listing.findById(listingId).select('owner');
-    if (!listing || listing.owner.toString() !== userId.toString()) {
-      return res.status(403).json({ error: 'You are not authorized to view proposals for this listing.' });
-    }
-
-    // If authorized, fetch all proposals with populated designer data
-    const proposals = await Proposal.find({ listing: listingId })
-      .populate('designer', 'name')
+    const proposals = await Proposal.find({ listing: req.params.id })
+      .populate('designer', 'name profile.avatar_url')
       .sort({ createdAt: -1 })
       .lean();
-
-    // Transform to match expected format
-    const formattedProposals = proposals.map(prop => ({
-      id: prop._id,
-      designer_id: prop.designer._id,
-      designer_name: prop.designer.name,
-      message: prop.message,
-      price_offered: prop.price_offered,
-      delivery_time: prop.delivery_time,
-      created_at: prop.createdAt
-    }));
-
-    res.json(formattedProposals);
+    res.json(proposals);
   } catch (error) {
-    console.error("Error fetching proposals:", error);
     next(error);
   }
+};
+
+// @desc    Update a proposal's status
+// @route   PATCH /api/listings/:listingId/proposals/:proposalId
+// @access  Private (Listing Owner only)
+export const updateProposalStatus = async (req, res, next) => {
+    try {
+        const { status } = req.body;
+        const proposal = await Proposal.findByIdAndUpdate(req.params.proposalId, { status }, { new: true });
+        res.json({ message: 'Proposal status updated', proposal });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc    Bookmark or unbookmark a listing
+// @route   POST /api/listings/:id/bookmark
+// @access  Private (Designer only)
+export const toggleBookmark = async (req, res, next) => {
+    try {
+        const listingId = req.params.id;
+        const userId = req.user.id;
+        
+        const user = await User.findById(userId);
+        
+        const isBookmarked = user.profile.saved_projects.includes(listingId);
+        
+        if (isBookmarked) {
+            // Remove from bookmarks
+            user.profile.saved_projects.pull(listingId);
+        } else {
+            // Add to bookmarks
+            user.profile.saved_projects.push(listingId);
+        }
+        
+        await user.save();
+        
+        res.json({ 
+            message: isBookmarked ? 'Project removed from bookmarks' : 'Project bookmarked successfully',
+            isBookmarked: !isBookmarked
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc    Get all bookmarked listings for a user
+// @route   GET /api/listings/bookmarked
+// @access  Private (Designer only)
+export const getBookmarkedListings = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.user.id).populate({
+            path: 'profile.saved_projects',
+            model: 'Listing',
+            populate: {
+                path: 'owner',
+                model: 'User',
+                select: 'name'
+            }
+        });
+        
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        const formattedListings = user.profile.saved_projects.map(listing => ({
+            ...listing.toObject(),
+            id: listing._id,
+        }));
+
+        res.json(formattedListings);
+        
+    } catch (error) {
+        next(error);
+    }
 };

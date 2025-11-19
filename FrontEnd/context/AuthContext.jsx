@@ -93,9 +93,10 @@ export const AuthProvider = ({ children }) => {
     dispatch({ type: 'LOGIN_START' });
     try {
       const response = await authAPI.register(userData);
-      localStorage.setItem('accessToken', response.data.accessToken);
-      dispatch({ type: 'LOGIN_SUCCESS', payload: response.data });
-      return response.data;
+      // Backend returns { message: "User created successfully..." }
+      // Don't auto-login - user needs to verify email first
+      dispatch({ type: 'SET_LOADING', payload: false });
+      return response.data; // Return the success message for display
     } catch (error) {
       const errorMessage = error.response?.data?.error || 'Registration failed';
       dispatch({ type: 'LOGIN_FAILURE', payload: errorMessage });
@@ -114,11 +115,25 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const checkAuth = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        const response = await authAPI.getCurrentUser();
+        dispatch({ type: 'SET_USER', payload: response.data.user });
+      }
+    } catch (error) {
+      localStorage.removeItem('accessToken');
+      dispatch({ type: 'LOGOUT' });
+    }
+  };
+
   const value = {
     ...state,
     login,
     register,
-    logout
+    logout,
+    checkAuth
   };
 
   return (

@@ -15,7 +15,6 @@ const orderSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Listing',
   },
-  // gig: { type: mongoose.Schema.Types.ObjectId, ref: 'Gig' }, // Uncomment when Gig model is created
   proposal: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Proposal',
@@ -30,11 +29,8 @@ const orderSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'paid', 'in_progress', 'delivered', 'completed', 'cancelled', 'disputed'],
-    default: 'pending',
-  },
-  stripe_payment_intent_id: {
-    type: String,
+    enum: ['in_progress', 'delivered', 'completed', 'cancelled', 'disputed'],
+    default: 'in_progress',
   },
 }, {
   timestamps: true,

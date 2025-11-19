@@ -13,13 +13,14 @@ import Messages from './pages/Messages';
 import Listings from './pages/Listings.jsx';
 import CreateListing from './pages/CreateListing.jsx';
 import ListingDetail from './pages/ListingDetail';
-import Checkout from './pages/Checkout';
+import OrderDetail from './pages/OrderDetail';
 import AdminPanel from './pages/AdminPanel';
 import PrivateRoute from './components/PrivateRoute';
 import SavedProjects from './pages/SavedProjects';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Invoices from './pages/Invoices';
+import InvoiceDetail from './pages/InvoiceDetail';
 import { motion } from 'framer-motion';
 import './styles/App.css';
 
@@ -29,13 +30,7 @@ function App() {
       <Router>
         <div className="min-h-screen bg-lightgray-light flex flex-col">
           <Navbar />
-          
-          <motion.main 
-            className="flex-grow"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-          >
+          <motion.main className="flex-grow" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<Home />} />
@@ -52,22 +47,18 @@ function App() {
               <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
               <Route path="/messages" element={<PrivateRoute><Messages /></PrivateRoute>} />
               <Route path="/profile/edit" element={<PrivateRoute><ProfileEdit /></PrivateRoute>} />
-              <Route path="/checkout/:orderId" element={<PrivateRoute><Checkout /></PrivateRoute>} />
+              <Route path="/order/:id" element={<PrivateRoute><OrderDetail /></PrivateRoute>} />
               <Route path="/invoices" element={<PrivateRoute><Invoices /></PrivateRoute>} />
+              <Route path="/invoice/:id" element={<PrivateRoute><InvoiceDetail /></PrivateRoute>} />
               
-              {/* Designer Routes */}
+              {/* Role-Specific Routes */}
               <Route path="/projects/saved" element={<PrivateRoute roles={['designer']}><SavedProjects /></PrivateRoute>} />
-              
-              {/* Business Routes */}
               <Route path="/listings/new" element={<PrivateRoute roles={['business']}><CreateListing /></PrivateRoute>} />
               
               {/* Admin Route */}
-              <Route path="/admin/*" element={
-                <PrivateRoute roles={['admin']}><AdminPanel /></PrivateRoute>
-              } />
+              <Route path="/admin/*" element={<PrivateRoute roles={['admin']}><AdminPanel /></PrivateRoute>} />
             </Routes>
           </motion.main>
-          
           <Footer />
         </div>
       </Router>

@@ -1,21 +1,25 @@
 import express from 'express';
-import { requireRole } from '../middleware/auth.js';
+import {
+  getAllUsers,
+  updateUserStatus,
+  getPlatformAnalytics,
+  getAllMessageThreads,
+  getMessagesForModeration,
+  toggleFlagMessageThread,
+} from '../controllers/adminController.js';
 
 const router = express.Router();
 
-// Get all users (admin only)
-router.get('/users', requireRole(['admin']), (req, res) => {
-  res.json({ message: 'Get all users - TODO' });
-});
+// User management
+router.get('/users', getAllUsers);
+router.patch('/users/:id/status', updateUserStatus);
 
-// Suspend/activate user
-router.patch('/users/:id/suspend', requireRole(['admin']), (req, res) => {
-  res.json({ message: 'Suspend user - TODO' });
-});
+// Analytics
+router.get('/analytics', getPlatformAnalytics);
 
-// Get platform analytics
-router.get('/analytics', requireRole(['admin']), (req, res) => {
-  res.json({ message: 'Get analytics - TODO' });
-});
+// Content Moderation
+router.get('/messages', getAllMessageThreads); // Get all threads
+router.get('/messages/:threadId', getMessagesForModeration); // Get messages within a thread
+router.patch('/messages/:threadId/flag', toggleFlagMessageThread); // Flag/unflag a thread
 
 export default router;

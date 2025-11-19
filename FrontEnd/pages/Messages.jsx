@@ -5,6 +5,7 @@ import { messageAPI } from '../services/api';
 import { io } from 'socket.io-client';
 
 const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+  autoConnect: false, // Do not connect automatically
   transports: ['polling', 'websocket']
 });
 
@@ -38,31 +39,31 @@ const Messages = () => {
 
   useEffect(() => {
     if (user) {
-      // Connect and join room
       socket.connect();
       socket.emit('join_room', user.id);
 
-      // Listener for incoming messages
       const handleReceiveMessage = (message) => {
-        // If the message belongs to the currently open chat, add it to the view
+        // If the message belongs to the currently active chat, add it to the view
         if (activeThread && message.thread_id === activeThread.thread_id) {
           setMessages((prev) => [...prev, message]);
         }
-        // Always refresh the thread list to show the new "last message"
+        // Always refresh the thread list to show the new "last message" and reorder
         fetchThreads();
       };
       socket.on('receive_message', handleReceiveMessage);
 
-      // Initial data load
+      // Initial data load and handling of "new conversation" state
       const initialize = async () => {
         const allThreads = await fetchThreads();
         const newConversationUser = location.state?.newConversationWith;
 
         if (newConversationUser) {
+          // Find if a thread already exists with this user
           const existingThread = allThreads.find(t => t.participant_id === newConversationUser.id);
           if (existingThread) {
             handleThreadClick(existingThread);
           } else {
+            // Create a temporary placeholder thread to start the conversation
             const placeholder = {
               thread_id: [user.id, newConversationUser.id].sort().join('-'),
               participant_id: newConversationUser.id,
@@ -74,7 +75,11 @@ const Messages = () => {
             setActiveThread(placeholder);
             setMessages([]);
           }
-          navigate(location.pathname, { replace: true });
+          // Clear the location state to prevent re-triggering
+          navigate(location.pathname, { replace: true, state: {} });
+        } else if (allThreads.length > 0 && !activeThread) {
+            // Select the first thread by default
+            handleThreadClick(allThreads[0]);
         }
       };
       initialize();
@@ -84,7 +89,7 @@ const Messages = () => {
         socket.disconnect();
       };
     }
-  }, [user]);
+  }, [user, location.state]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -108,8 +113,7 @@ const Messages = () => {
     e.preventDefault();
     if (newMessage.trim() === '' || !activeThread) return;
     
-    // Only emit the event to the server. The server is the source of truth.
-    // The server will save it, broadcast it back, and our `receive_message` listener will then add it to the UI.
+    // Emit the event to the server. The server is the source of truth.
     socket.emit('send_message', {
       sender_id: user.id,
       recipient_id: activeThread.participant_id,
@@ -124,6 +128,7 @@ const Messages = () => {
 
   return (
     <div className="h-[calc(100vh-8rem)] flex bg-white max-w-7xl mx-auto my-8 rounded-lg shadow-lg border-2 border-mint/20 overflow-hidden">
+      {/* Left Panel: Conversation Threads */}
       <div className="w-1/3 border-r-2 border-lightgray flex flex-col">
         <div className="p-4 border-b-2 border-lightgray">
           <h2 className="text-xl font-bold text-charcoal">Conversations</h2>
@@ -143,6 +148,8 @@ const Messages = () => {
           )}
         </div>
       </div>
+      
+      {/* Right Panel: Active Chat */}
       <div className="w-2/3 flex flex-col bg-lightgray-light">
         {activeThread ? (
           <>
@@ -150,11 +157,11 @@ const Messages = () => {
               <h2 className="text-xl font-bold text-charcoal">{activeThread.participant_name}</h2>
             </div>
             <div className="flex-1 p-4 overflow-y-auto">
-                {messages.map((msg, index) => (
-                  <div key={msg.id || `temp-${index}`} className={`flex ${msg.sender_id === user.id ? 'justify-end' : 'justify-start'} mb-4`}>
+                {messages.map((msg) => (
+                  <div key={msg.id} className={`flex ${msg.sender_id === user.id ? 'justify-end' : 'justify-start'} mb-4`}>
                     <div className={`max-w-md p-3 rounded-lg shadow-sm ${msg.sender_id === user.id ? 'bg-mint text-white' : 'bg-white text-charcoal'}`}>
                       <p>{msg.body}</p>
-                      <p className={`text-xs mt-1 text-right ${msg.sender_id === user.id ? 'text-lightgray' : 'text-charcoal-light'}`}>{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                      <p className={`text-xs mt-1 text-right ${msg.sender_id === user.id ? 'text-white/70' : 'text-charcoal-light'}`}>{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
                   </div>
                 ))}
@@ -168,8 +175,8 @@ const Messages = () => {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-charcoal-light">
-            <p>Select a conversation to start chatting.</p>
+          <div className="flex-1 flex items-center justify-center text-charcoal-light text-center">
+            <p>Select a conversation to start chatting,<br />or contact a designer from their profile page.</p>
           </div>
         )}
       </div>

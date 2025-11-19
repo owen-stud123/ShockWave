@@ -6,7 +6,10 @@ import {
   getListingById, 
   createListing,
   createProposal,
-  getProposalsForListing
+  getProposalsForListing,
+  updateProposalStatus,
+  toggleBookmark,
+  getBookmarkedListings
 } from '../controllers/listingsController.js';
 
 const router = express.Router();
@@ -22,8 +25,6 @@ const createListingValidation = [
     }
     return true;
   }),
-  body('deadline').optional().isISO8601().toDate(),
-  body('tags').optional().isArray()
 ];
 
 const createProposalValidation = [
@@ -34,6 +35,7 @@ const createProposalValidation = [
 
 // --- Listing Routes ---
 router.get('/', getAllListings);
+router.get('/bookmarked', authenticateToken, requireRole(['designer']), getBookmarkedListings);
 router.get('/:id', getListingById);
 router.post(
   '/', 
@@ -43,8 +45,10 @@ router.post(
   createListing
 );
 
+// --- Bookmark Routes ---
+router.post('/:id/bookmark', authenticateToken, requireRole(['designer']), toggleBookmark);
+
 // --- Proposal Routes ---
-// GET proposals for a listing (for the business owner)
 router.get(
   '/:id/proposals',
   authenticateToken,
@@ -52,13 +56,19 @@ router.get(
   getProposalsForListing
 );
 
-// POST a proposal to a listing (for designers)
 router.post(
   '/:id/proposals', 
   authenticateToken, 
   requireRole(['designer']), 
   createProposalValidation,
   createProposal
+);
+
+router.patch(
+  '/:listingId/proposals/:proposalId',
+  authenticateToken,
+  requireRole(['business']),
+  updateProposalStatus
 );
 
 export default router;

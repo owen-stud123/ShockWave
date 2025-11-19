@@ -1,16 +1,28 @@
 import express from 'express';
+import { body } from 'express-validator';
+import {
+  sendMessage,
+  getUserThreads,
+  getMessagesInThread,
+} from '../controllers/messagesController.js';
 import { authenticateToken } from '../middleware/auth.js';
-import { getMessageThreads, getMessagesInThread } from '../controllers/messagesController.js';
 
 const router = express.Router();
 
-// Get all message threads for the logged-in user
-router.get('/threads', authenticateToken, getMessageThreads);
+// Validation chain for sending a message
+const sendMessageValidation = [
+  body('recipient_id').isMongoId().withMessage('Valid recipient ID is required'),
+  body('body').trim().isLength({ min: 1 }).withMessage('Message cannot be empty'),
+  body('attachments').optional().isArray(),
+];
 
-// Get messages in a thread with a specific user
-router.get('/threads/:participantId', authenticateToken, getMessagesInThread);
+// Send a new message (creates thread automatically)
+router.post('/', authenticateToken, sendMessageValidation, sendMessage);
 
-// The POST for sending a message will be handled by Socket.IO,
-// but you could add a RESTful endpoint here as a fallback.
+// Get all conversation threads for the user
+router.get('/threads', authenticateToken, getUserThreads);
+
+// Get all messages in a specific thread
+router.get('/:threadId', authenticateToken, getMessagesInThread);
 
 export default router;

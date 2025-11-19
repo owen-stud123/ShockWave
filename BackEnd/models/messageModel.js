@@ -28,6 +28,11 @@ const messageSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  is_flagged: {
+    type: Boolean,
+    default: false,
+    index: true, // Add index for efficient filtering of flagged threads
+  },
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
   toJSON: { virtuals: true },
@@ -37,7 +42,6 @@ const messageSchema = new mongoose.Schema({
 messageSchema.virtual('id').get(function() {
   return this._id.toHexString();
 });
-
 
 const Message = mongoose.model('Message', messageSchema);
 

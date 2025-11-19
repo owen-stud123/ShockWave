@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { reviewAPI } from '../services/api';
 
-const StarInput = ({ rating, setRating }) => {
+const StarInput = ({ rating, setRating, disabled }) => {
   return (
     <div className="flex">
       {[...Array(5)].map((_, index) => {
@@ -9,9 +9,8 @@ const StarInput = ({ rating, setRating }) => {
         return (
           <span
             key={starValue}
-            className={`cursor-pointer text-3xl ${starValue <= rating ? 'text-yellow-400' : 'text-gray-300'}`}
-            onClick={() => setRating(starValue)}
-            onMouseOver={() => setRating(starValue)}
+            className={`cursor-pointer text-3xl ${disabled ? 'cursor-not-allowed' : ''} ${starValue <= rating ? 'text-yellow-400' : 'text-gray-300'}`}
+            onClick={() => !disabled && setRating(starValue)}
           >
             ★
           </span>
@@ -42,8 +41,7 @@ const ReviewForm = ({ orderId, revieweeId, onReviewSubmitted }) => {
         rating: rating,
         comment: comment,
       });
-      // Notify parent component that the review was submitted
-      onReviewSubmitted();
+      onReviewSubmitted(); // Notify parent to refetch data
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to submit review.');
     } finally {
@@ -52,13 +50,13 @@ const ReviewForm = ({ orderId, revieweeId, onReviewSubmitted }) => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-8 mt-8">
-      <h2 className="text-2xl font-semibold text-charcoal mb-4">Leave a Review</h2>
+    <div className="bg-gray-50 rounded-lg p-6 mt-6 border">
+      <h3 className="text-xl font-semibold text-charcoal mb-4">Leave a Review</h3>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && <div className="text-red-500 bg-red-100 p-3 rounded-md">{error}</div>}
         <div>
           <label className="block text-sm font-medium text-charcoal mb-2">Your Rating</label>
-          <StarInput rating={rating} setRating={setRating} />
+          <StarInput rating={rating} setRating={setRating} disabled={isSubmitting} />
         </div>
         <div>
           <label htmlFor="comment" className="block text-sm font-medium text-charcoal mb-2">Your Comments</label>
@@ -67,15 +65,16 @@ const ReviewForm = ({ orderId, revieweeId, onReviewSubmitted }) => {
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             rows="4"
-            className="w-full p-2 border-2 border-lightgray-dark rounded-md focus:ring-mint focus:border-mint"
-            placeholder="Share your experience with this user..."
+            className="w-full p-2 border-2 border-lightgray-dark rounded-md"
+            placeholder="Share your experience..."
+            disabled={isSubmitting}
           ></textarea>
         </div>
         <div className="text-right">
           <button
             type="submit"
             disabled={isSubmitting}
-            className="bg-mint text-white px-6 py-2 rounded-md hover:bg-mint-dark transition-colors disabled:opacity-50"
+            className="bg-mint text-white px-6 py-2 rounded-md hover:bg-mint-dark disabled:opacity-50"
           >
             {isSubmitting ? 'Submitting...' : 'Submit Review'}
           </button>

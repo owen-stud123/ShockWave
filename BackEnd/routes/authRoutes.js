@@ -43,7 +43,7 @@ router.post('/logout', authenticateToken, logoutUser);
 router.get('/me', authenticateToken, getMe);
 
 // Email Verification and Password Reset
-router.post('/verify-email/:token', verifyEmail);
+router.get('/verify-email/:token', verifyEmail);
 router.post('/forgot-password', forgotPasswordValidation, forgotPassword);
 router.post('/reset-password/:token', resetPasswordValidation, resetPassword);
 

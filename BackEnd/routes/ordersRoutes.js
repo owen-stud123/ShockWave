@@ -2,34 +2,34 @@ import express from 'express';
 import { body } from 'express-validator';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
 import {
-  getUserOrders,
   createOrder,
+  getUserOrders,
   getOrderById,
-  updateOrderStatus
+  updateOrderStatus,
 } from '../controllers/ordersController.js';
+import { createProgressUpdate } from '../controllers/progressUpdateController.js';
 
 const router = express.Router();
 
-// Validation middleware
 const createOrderValidation = [
   body('proposal_id').isMongoId().withMessage('Valid proposal ID is required')
 ];
 
 const updateStatusValidation = [
-  body('status').isIn(['pending', 'paid', 'in_progress', 'delivered', 'completed', 'cancelled', 'disputed'])
-    .withMessage('Invalid status')
+  body('status').isIn(['delivered', 'completed', 'cancelled']).withMessage('Invalid status value')
 ];
 
-// Get user orders
-router.get('/', authenticateToken, getUserOrders);
+const createUpdateValidation = [
+    body('message').notEmpty().trim().withMessage('An update message is required.')
+];
 
-// Create order (accept proposal)
+// Order Management
 router.post('/', authenticateToken, requireRole(['business']), createOrderValidation, createOrder);
-
-// Get order by ID
+router.get('/', authenticateToken, getUserOrders);
 router.get('/:id', authenticateToken, getOrderById);
-
-// Update order status
 router.patch('/:id/status', authenticateToken, updateStatusValidation, updateOrderStatus);
+
+// Progress Updates (nested under an order)
+router.post('/:orderId/updates', authenticateToken, requireRole(['designer']), createUpdateValidation, createProgressUpdate);
 
 export default router;

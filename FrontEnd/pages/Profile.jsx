@@ -32,7 +32,6 @@ const Profile = () => {
     const fetchProfileData = async () => {
       try {
         setLoading(true);
-        // Fetch both profile and reviews at the same time for efficiency
         const [profileRes, reviewsRes] = await Promise.all([
           profileAPI.getProfile(id),
           reviewAPI.getReviewsForUser(id)
@@ -41,7 +40,6 @@ const Profile = () => {
         setReviews(reviewsRes.data);
       } catch (error) {
         console.error('Failed to fetch profile data:', error);
-        // This will stop the loading spinner even if there's an error
       } finally {
         setLoading(false);
       }
@@ -60,7 +58,6 @@ const Profile = () => {
     });
   };
 
-  // Display a loading indicator while fetching data
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -69,7 +66,6 @@ const Profile = () => {
     );
   }
 
-  // Display an error message if the profile could not be loaded
   if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -78,46 +74,51 @@ const Profile = () => {
     );
   }
 
-  // --- THIS IS THE DEFINITIVE FIX ---
-  // The base URL for static files should NOT include '/api'.
-  const SERVER_BASE_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
-  
-  const avatarUrl = profile.avatar_url
-    ? `${SERVER_BASE_URL}${profile.avatar_url}`
-    : `https://ui-avatars.com/api/?name=${profile.name.replace(' ', '+')}&background=DFE6E9&color=2D3436`;
-    
+  const SERVER_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const avatarUrl = profile.avatar_url ? `${SERVER_BASE_URL}${profile.avatar_url}` : `https://ui-avatars.com/api/?name=${profile.name.replace(' ', '+')}`;
   const showContactButton = isAuthenticated && user?.role === 'business' && user?.id !== profile.user_id;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-lg shadow-lg overflow-hidden">
-        {/* Header */}
         <div className="bg-gradient-to-r from-charcoal to-charcoal-light p-8 text-white">
           <div className="flex flex-col sm:flex-row items-center gap-6">
-            <img 
-              src={avatarUrl} 
-              alt={profile.name}
-              className="w-24 h-24 rounded-full object-cover border-4 border-mint bg-white"
-            />
+            <img src={avatarUrl} alt={profile.name} className="w-24 h-24 rounded-full object-cover border-4 border-mint bg-white"/>
             <div>
               <h1 className="text-3xl font-bold">{profile.name}</h1>
               <p className="text-xl capitalize text-lightgray">{profile.role}</p>
-              <div className="mt-2">
-                <StarRating rating={profile.avg_rating} reviewCount={profile.review_count} />
-              </div>
+              <div className="mt-2"><StarRating rating={profile.avg_rating} reviewCount={profile.review_count} /></div>
             </div>
           </div>
         </div>
-
-        {/* Content */}
+        
         <div className="p-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Content */}
             <div className="lg:col-span-2">
               <section className="mb-8">
                 <h2 className="text-2xl font-bold text-charcoal mb-4">About Me</h2>
                 <p className="text-charcoal-light leading-relaxed">{profile.bio || 'No bio available.'}</p>
               </section>
+
+              {profile.role === 'designer' && (
+                  <section className="mb-8">
+                      <h2 className="text-2xl font-bold text-charcoal mb-4">Portfolio</h2>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {profile.portfolio_items?.length > 0 ? (
+                              profile.portfolio_items.map(item => (
+                                  <a href={`${SERVER_BASE_URL}${item.file_url}`} target="_blank" rel="noreferrer" key={item._id} className="border rounded-lg p-4 hover:shadow-md hover:border-mint">
+                                      <p className="font-bold">{item.title}</p>
+                                      <p className="text-sm text-gray-600">{item.description}</p>
+                                      <p className="text-xs text-mint mt-2 uppercase">View {item.file_type}</p>
+                                  </a>
+                              ))
+                          ) : (
+                              <p className="text-charcoal-light">No portfolio items have been uploaded yet.</p>
+                          )}
+                      </div>
+                  </section>
+              )}
+
               <section>
                 <h2 className="text-2xl font-bold text-charcoal mb-4">Reviews</h2>
                 <div className="space-y-6">
@@ -139,7 +140,6 @@ const Profile = () => {
               </section>
             </div>
 
-            {/* Sidebar */}
             <div className="lg:col-span-1">
               <div className="bg-lightgray-light p-6 rounded-lg sticky top-24">
                 <h3 className="text-lg font-semibold text-charcoal mb-4">Quick Info</h3>
@@ -153,9 +153,7 @@ const Profile = () => {
                 
                 <div className="mb-4">
                   <p className="text-sm text-charcoal-light">Member Since</p>
-                  <p className="font-medium">
-                    {new Date(profile.user_created_at).toLocaleDateString()}
-                  </p>
+                  <p className="font-medium">{new Date(profile.user_created_at).toLocaleDateString()}</p>
                 </div>
 
                 {showContactButton && (

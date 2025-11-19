@@ -14,7 +14,8 @@ const updateProfileValidation = [
   body('social_links').optional().isObject()
 ];
 
-router.get('/', searchProfiles);
+// IMPORTANT: Order matters. The general search '/' must come before the specific '/:id'.
+router.get('/', searchProfiles); 
 router.get('/:id', optionalAuth, getProfileById);
 router.put('/:id', authenticateToken, updateProfileValidation, updateProfile);
 
