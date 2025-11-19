@@ -95,7 +95,7 @@ export const loginUser = async (req, res, next) => {
     //     return res.status(403).json({ error: 'Please verify your email before logging in.' });
     // }
 
-    const isValidPassword = await user.matchPassword(password);
+    const isValidPassword = user.comparePassword(password);
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }

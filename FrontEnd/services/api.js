@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Get the base URL from environment variables, with a fallback for local development
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 // --- 1. AXIOS INSTANCE CREATION ---
 // This is the centralized API client. All requests from the frontend will go through this instance.

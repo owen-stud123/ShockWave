@@ -32,10 +32,6 @@ const Login = () => {
     }
   };
 
-  const quickLogin = (email, password) => {
-    setFormData({ email, password });
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-lightgray-light via-white to-mint/5 py-12 px-4 sm:px-6 lg:px-8">
       <motion.div 
@@ -87,38 +83,9 @@ const Login = () => {
             </p>
           </div>
         </div>
-
-        <TestAccountsBox quickLogin={quickLogin} />
       </motion.div>
     </div>
   );
 };
-
-const TestAccountsBox = ({ quickLogin }) => (
-    <motion.div className="mt-6 bg-gradient-to-r from-lightgray-light to-lightgray rounded-xl p-6 border-2 border-lightgray-dark" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
-        <div className="text-center mb-4">
-            <p className="text-xs font-semibold text-charcoal-light uppercase tracking-wide">Test Accounts</p>
-        </div>
-        <div className="space-y-3">
-            <TestAccountButton onClick={() => quickLogin('designer@creative.com', 'design2024')} role="👨‍🎨 Designer" email="designer@creative.com" pass="design2024" />
-            <TestAccountButton onClick={() => quickLogin('business@startup.com', 'startup2024')} role="💼 Business" email="business@startup.com" pass="startup2024" />
-            <TestAccountButton onClick={() => quickLogin('admin@shockwave.com', 'admin2024')} role="🔐 Admin" email="admin@shockwave.com" pass="admin2024" />
-        </div>
-        <p className="text-xs text-charcoal-light text-center mt-4 italic">Click any account to auto-fill credentials</p>
-    </motion.div>
-);
-
-const TestAccountButton = ({ onClick, role, email, pass }) => (
-    <button onClick={onClick} className="w-full bg-white p-3 rounded-lg border-2 border-lightgray-dark hover:border-mint hover:shadow-md transition-all text-left group">
-        <div className="flex items-center justify-between">
-            <div>
-                <p className="text-xs font-medium text-charcoal-light mb-1">{role}</p>
-                <p className="text-sm font-mono text-charcoal-light group-hover:text-mint">{email}</p>
-                <p className="text-sm font-mono text-charcoal-light group-hover:text-mint">{pass}</p>
-            </div>
-            <svg className="w-5 h-5 text-charcoal-light group-hover:text-mint" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-        </div>
-    </button>
-);
 
 export default Login;

@@ -1,14 +1,25 @@
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Configure environment variables FIRST
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const envPath = path.join(__dirname, '.env');
+console.log('📁 Looking for .env at:', envPath);
+const result = dotenv.config({ path: envPath });
+console.log('📄 Dotenv result:', result.error ? `ERROR: ${result.error.message}` : 'SUCCESS');
+if (result.parsed) {
+  console.log('🔓 Parsed from .env:', Object.keys(result.parsed));
+}
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import http from 'http';
 import { Server } from 'socket.io';
-
 
 import connectDB from './config/database.js';
 import Message from './models/messageModel.js';
@@ -26,11 +37,8 @@ import invoiceRoutes from './routes/invoiceRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { authenticateToken, requireRole } from './middleware/auth.js';
 
-dotenv.config();
-connectDB(); 
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+console.log('🔍 MONGO_URI loaded:', process.env.MONGO_URI ? 'YES' : 'NO');
+connectDB();
 const app = express();
 const server = http.createServer(app);
 
