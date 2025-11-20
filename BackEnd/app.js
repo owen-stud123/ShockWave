@@ -6,12 +6,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const envPath = path.join(__dirname, '.env');
-console.log('📁 Looking for .env at:', envPath);
 const result = dotenv.config({ path: envPath });
-console.log('📄 Dotenv result:', result.error ? `ERROR: ${result.error.message}` : 'SUCCESS');
-if (result.parsed) {
-  console.log('🔓 Parsed from .env:', Object.keys(result.parsed));
-}
 
 import express from 'express';
 import cors from 'cors';
@@ -74,7 +69,35 @@ app.use('/api/reviews', reviewsRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.get('/api/health', (req, res) => res.json({ status: 'OK' }));
 
-io.on('connection', (socket) => { /* Socket logic remains */ });
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('✅ User connected:', socket.id);
+
+  socket.on('join_room', (userId) => {
+    socket.join(`user_${userId}`);
+    console.log(`User ${userId} joined their room`);
+  });
+
+  socket.on('send_message', async (messageData) => {
+    try {
+      const message = new Message(messageData);
+      await message.save();
+      
+      // Emit to recipient's room
+      io.to(`user_${messageData.recipient_id}`).emit('receive_message', message);
+      // Also emit back to sender
+      io.to(`user_${messageData.sender_id}`).emit('receive_message', message);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      socket.emit('message_error', { error: 'Failed to send message' });
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('❌ User disconnected:', socket.id);
+  });
+});
+
 app.use(errorHandler);
 
 server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

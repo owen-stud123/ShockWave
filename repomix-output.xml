@@ -43,6 +43,7 @@ The content is organized as follows:
 .gitignore
 BackEnd/app.js
 BackEnd/check-db.js
+BackEnd/check-emails.js
 BackEnd/config/database.js
 BackEnd/controllers/adminController.js
 BackEnd/controllers/authController.js
@@ -83,7 +84,6 @@ BackEnd/routes/uploadRoutes.js
 BackEnd/scripts/init.js
 BackEnd/services/emailService.js
 BackEnd/services/placeholder.txt
-BackEnd/test-auth.js
 BackEnd/uploads/avatar-1762325296812-221264594.JPG
 BackEnd/uploads/avatar-1762325682386-937779326.JPG
 BackEnd/uploads/avatar-1762325760099-964931611.JPG
@@ -114,7 +114,9 @@ FrontEnd/components/Navbar.jsx
 FrontEnd/components/PrivateRoute.jsx
 FrontEnd/components/ReviewForm.jsx
 FrontEnd/context/AuthContext.jsx
+FrontEnd/index.html
 FrontEnd/main.jsx
+FrontEnd/package.json
 FrontEnd/pages/AdminMessagesView.jsx
 FrontEnd/pages/AdminPanel.jsx
 FrontEnd/pages/Browse.jsx
@@ -134,9 +136,12 @@ FrontEnd/pages/ProfileEdit.jsx
 FrontEnd/pages/Register.jsx
 FrontEnd/pages/ResetPassword.jsx
 FrontEnd/pages/SavedProjects.jsx
+FrontEnd/postcss.config.js
 FrontEnd/services/api.js
 FrontEnd/styles/App.css
 FrontEnd/styles/index.css
+FrontEnd/tailwind.config.js
+FrontEnd/vite.config.js
 index.html
 package.json
 PLATFORM_FLOW_DIAGRAM.md
@@ -149,101 +154,171 @@ vite.config.js
 <files>
 This section contains the contents of the repository's files.
 
-<file path="FrontEnd/pages/InvoiceDetail.jsx">
-import { useParams, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+<file path="FrontEnd/index.html">
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌊</text></svg>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="ShockWave - Connect graphic designers with businesses. A marketplace for creative talent." />
+    <title>ShockWave - Digital Marketplace for Designers</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/main.jsx"></script>
+  </body>
+</html>
+</file>
 
-function InvoiceDetail() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const [invoice, setInvoice] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // TODO: Fetch invoice details from API
-    // For now, using placeholder data
-    setInvoice({
-      id,
-      invoiceNumber: `INV-${id}`,
-      date: new Date().toLocaleDateString(),
-      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString(),
-      amount: 0,
-      status: "pending",
-      items: []
-    });
-    setLoading(false);
-  }, [id]);
-
-  if (loading) {
-    return <div className="container mx-auto p-6">Loading...</div>;
+<file path="FrontEnd/package.json">
+{
+  "name": "shockwave-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "chart.js": "^4.4.3",
+    "framer-motion": "^11.15.0",
+    "lucide-react": "^0.554.0",
+    "react": "^19.1.1",
+    "react-chartjs-2": "^5.2.0",
+    "react-dom": "^19.1.1",
+    "react-router-dom": "^6.28.0",
+    "socket.io-client": "^4.7.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.0.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.14",
+    "vite": "^7.1.7"
   }
-
-  return (
-    <div className="container mx-auto p-6">
-      <button
-        onClick={() => navigate(-1)}
-        className="mb-6 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded"
-      >
-        ← Back
-      </button>
-
-      <div className="bg-white shadow-md rounded-lg p-6">
-        <h1 className="text-3xl font-bold mb-6">Invoice Detail</h1>
-        
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <div>
-            <p className="text-gray-600">Invoice Number</p>
-            <p className="font-semibold">{invoice.invoiceNumber}</p>
-          </div>
-          <div>
-            <p className="text-gray-600">Status</p>
-            <p className="font-semibold capitalize">{invoice.status}</p>
-          </div>
-          <div>
-            <p className="text-gray-600">Date</p>
-            <p className="font-semibold">{invoice.date}</p>
-          </div>
-          <div>
-            <p className="text-gray-600">Due Date</p>
-            <p className="font-semibold">{invoice.dueDate}</p>
-          </div>
-        </div>
-
-        <div className="border-t pt-4">
-          <h2 className="text-xl font-semibold mb-4">Items</h2>
-          {invoice.items.length === 0 ? (
-            <p className="text-gray-500">No items</p>
-          ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-2">Description</th>
-                  <th className="text-right py-2">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoice.items.map((item, index) => (
-                  <tr key={index} className="border-b">
-                    <td className="py-2">{item.description}</td>
-                    <td className="text-right py-2">${item.amount}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        <div className="mt-6 text-right">
-          <p className="text-2xl font-bold">
-            Total: ${invoice.amount}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
 }
+</file>
 
-export default InvoiceDetail;
+<file path="FrontEnd/postcss.config.js">
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+</file>
+
+<file path="FrontEnd/tailwind.config.js">
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        charcoal: {
+          DEFAULT: '#2D3436',
+          light: '#3d4547',
+          dark: '#1d2426',
+        },
+        lightgray: {
+          DEFAULT: '#DFE6E9',
+          light: '#F5F7F8',
+          dark: '#B2BEC3',
+        },
+        mint: {
+          DEFAULT: '#00CEC9',
+          light: '#55EFC4',
+          dark: '#00B894',
+        },
+        primary: {
+          50: '#e6fffe',
+          100: '#b3fffc',
+          200: '#80fffa',
+          300: '#4dffef',
+          400: '#1afff7',
+          500: '#00CEC9',
+          600: '#00b5b0',
+          700: '#009c98',
+          800: '#008380',
+          900: '#006a68',
+        }
+      },
+      animation: {
+        'fade-in': 'fadeIn 0.5s ease-in-out',
+        'slide-up': 'slideUp 0.3s ease-out',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        slideUp: {
+          '0%': { transform: 'translateY(10px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        }
+      }
+    },
+  },
+  plugins: [],
+}
+</file>
+
+<file path="FrontEnd/vite.config.js">
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 5174
+  }
+})
+</file>
+
+<file path="BackEnd/check-emails.js">
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import connectDB from './config/database.js';
+import User from './models/userModel.js';
+
+dotenv.config();
+
+const checkEmails = async () => {
+  try {
+    await connectDB();
+    console.log('\n✅ CHECKING USER EMAILS\n');
+    console.log('═══════════════════════════════════════════\n');
+
+    const users = await User.find({}).select('name email role');
+
+    console.log(`📊 Total Users: ${users.length}\n`);
+
+    users.forEach((user, index) => {
+      console.log(`User #${index + 1}:`);
+      console.log(`   Name: ${user.name}`);
+      console.log(`   Role: ${user.role}`);
+      console.log(`   Email: ${user.email || 'NO EMAIL FIELD'}`);
+      console.log('');
+    });
+
+    console.log('═══════════════════════════════════════════\n');
+  } catch (error) {
+    console.error('❌ Failed:', error);
+  } finally {
+    await mongoose.disconnect();
+    process.exit(0);
+  }
+};
+
+checkEmails();
 </file>
 
 <file path="BackEnd/controllers/adminController.js">
@@ -880,101 +955,6 @@ const Review = mongoose.model('Review', reviewSchema);
 export default Review;
 </file>
 
-<file path="BackEnd/models/userModel.js">
-import mongoose from 'mongoose';
-import bcrypt from 'bcrypt';
-
-const profileSchema = new mongoose.Schema({
-  bio: { type: String, default: '' },
-  skills: { type: [String], default: [] },
-  location: { type: String, default: '' },
-  hourly_rate: { type: Number },
-  portfolio_urls: { type: [String], default: [] }, // Kept for legacy/simple links
-  social_links: {
-    type: Map,
-    of: String,
-    default: {}
-  },
-  avatar_url: { type: String, default: '' },
-  saved_projects: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Listing' }], // For designers to bookmark projects
-}, { _id: false });
-
-const userSchema = new mongoose.Schema({
-  email: {
-    type: String,
-    required: true,
-    unique: true,
-    trim: true,
-    lowercase: true,
-    match: [/.+\@.+\..+/, 'Please fill a valid email address']
-  },
-  password_hash: {
-    type: String,
-    required: true,
-  },
-  role: {
-    type: String,
-    required: true,
-    enum: ['designer', 'business', 'admin'],
-  },
-  name: {
-    type: String,
-    required: true,
-  },
-  last_login: {
-    type: Date,
-  },
-  is_active: {
-    type: Boolean,
-    default: true,
-  },
-  is_email_verified: {
-    type: Boolean,
-    default: false,
-  },
-  email_verification_token: { type: String },
-  email_verification_expires: { type: Date },
-  password_reset_token: { type: String },
-  password_reset_expires: { type: Date },
-  profile: profileSchema,
-}, {
-  timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
-});
-
-// Virtual for 'id'
-userSchema.virtual('id').get(function() {
-  return this._id.toHexString();
-});
-
-// Initialize profile when a new user is created
-userSchema.pre('save', function(next) {
-  if (this.isNew) {
-    this.profile = {}; // Mongoose will apply defaults from schema
-  }
-  next();
-});
-
-// Method to compare password for login
-userSchema.methods.matchPassword = async function(enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password_hash);
-};
-
-// Middleware to hash password before saving
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password_hash')) {
-    next();
-  }
-  const salt = await bcrypt.genSalt(12);
-  this.password_hash = await bcrypt.hash(this.password_hash, salt);
-});
-
-const User = mongoose.model('User', userSchema);
-
-export default User;
-</file>
-
 <file path="BackEnd/routes/dashboardRoutes.js">
 import express from 'express';
 import { getDashboardStats } from '../controllers/dashboardController.js';
@@ -1063,17 +1043,6 @@ const transporter = nodemailer.createTransport({
 });
 
 const sendEmail = async (to, subject, html) => {
-  // In development, log the email to the console instead of sending
-  if (process.env.NODE_ENV === 'development') {
-    console.log('--- MOCKED EMAIL ---');
-    console.log(`To: ${to}`);
-    console.log(`Subject: ${subject}`);
-    console.log('Body (HTML):');
-    console.log(html);
-    console.log('--------------------');
-    return Promise.resolve();
-  }
-
   try {
     await transporter.sendMail({
       from: `"ShockWave Platform" <${process.env.SMTP_USER}>`,
@@ -1081,9 +1050,10 @@ const sendEmail = async (to, subject, html) => {
       subject,
       html,
     });
-    console.log(`Email sent to ${to}`);
+    console.log(`✅ Email sent to ${to} via ${process.env.SMTP_HOST}`);
   } catch (error) {
-    console.error(`Error sending email to ${to}:`, error);
+    console.error(`❌ Error sending email to ${to}:`, error.message);
+    throw error;
   }
 };
 
@@ -1117,198 +1087,6 @@ export const sendPasswordResetEmail = async (userEmail, token) => {
 
 <file path="BackEnd/services/placeholder.txt">
 // placeholder
-</file>
-
-<file path="BackEnd/test-auth.js">
-import fetch from 'node-fetch';
-
-const API_URL = 'http://localhost:5000/api';
-
-console.log('\n🧪 TESTING AUTHENTICATION ENDPOINTS\n');
-console.log('═══════════════════════════════════════════\n');
-
-// Test 1: Login with Designer
-async function testDesignerLogin() {
-  console.log('Test 1: Designer Login');
-  try {
-    const response = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: 'designer_creative',
-        password: 'design2024'
-      })
-    });
-    
-    const data = await response.json();
-    
-    if (response.ok && data.accessToken) {
-      console.log('   ✅ PASSED - Designer login successful');
-      console.log(`   User: ${data.user.name} (${data.user.role})`);
-      return data.accessToken;
-    } else {
-      console.log('   ❌ FAILED -', data.error);
-      return null;
-    }
-  } catch (error) {
-    console.log('   ❌ ERROR -', error.message);
-    return null;
-  }
-}
-
-// Test 2: Login with Business
-async function testBusinessLogin() {
-  console.log('\nTest 2: Business Login');
-  try {
-    const response = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: 'business_startup',
-        password: 'startup2024'
-      })
-    });
-    
-    const data = await response.json();
-    
-    if (response.ok && data.accessToken) {
-      console.log('   ✅ PASSED - Business login successful');
-      console.log(`   User: ${data.user.name} (${data.user.role})`);
-      return data.accessToken;
-    } else {
-      console.log('   ❌ FAILED -', data.error);
-      return null;
-    }
-  } catch (error) {
-    console.log('   ❌ ERROR -', error.message);
-    return null;
-  }
-}
-
-// Test 3: Login with Admin
-async function testAdminLogin() {
-  console.log('\nTest 3: Admin Login');
-  try {
-    const response = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: 'admin_master',
-        password: 'admin2024'
-      })
-    });
-    
-    const data = await response.json();
-    
-    if (response.ok && data.accessToken) {
-      console.log('   ✅ PASSED - Admin login successful');
-      console.log(`   User: ${data.user.name} (${data.user.role})`);
-      return data.accessToken;
-    } else {
-      console.log('   ❌ FAILED -', data.error);
-      return null;
-    }
-  } catch (error) {
-    console.log('   ❌ ERROR -', error.message);
-    return null;
-  }
-}
-
-// Test 4: Invalid credentials
-async function testInvalidLogin() {
-  console.log('\nTest 4: Invalid Credentials');
-  try {
-    const response = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: 'invalid_user',
-        password: 'wrong_password'
-      })
-    });
-    
-    const data = await response.json();
-    
-    if (!response.ok && data.error) {
-      console.log('   ✅ PASSED - Correctly rejected invalid credentials');
-      console.log(`   Error: ${data.error}`);
-    } else {
-      console.log('   ❌ FAILED - Should have rejected invalid credentials');
-    }
-  } catch (error) {
-    console.log('   ❌ ERROR -', error.message);
-  }
-}
-
-// Test 5: Get current user with token
-async function testGetCurrentUser(token) {
-  console.log('\nTest 5: Get Current User (with token)');
-  try {
-    const response = await fetch(`${API_URL}/auth/me`, {
-      method: 'GET',
-      headers: { 
-        'Authorization': `Bearer ${token}`
-      }
-    });
-    
-    const data = await response.json();
-    
-    if (response.ok && data.user) {
-      console.log('   ✅ PASSED - Retrieved current user');
-      console.log(`   User: ${data.user.name} (${data.user.username})`);
-    } else {
-      console.log('   ❌ FAILED -', data.error);
-    }
-  } catch (error) {
-    console.log('   ❌ ERROR -', error.message);
-  }
-}
-
-// Test 6: Get current user without token
-async function testGetCurrentUserNoAuth() {
-  console.log('\nTest 6: Get Current User (no token)');
-  try {
-    const response = await fetch(`${API_URL}/auth/me`, {
-      method: 'GET'
-    });
-    
-    const data = await response.json();
-    
-    if (!response.ok) {
-      console.log('   ✅ PASSED - Correctly rejected unauthenticated request');
-      console.log(`   Error: ${data.error}`);
-    } else {
-      console.log('   ❌ FAILED - Should require authentication');
-    }
-  } catch (error) {
-    console.log('   ❌ ERROR -', error.message);
-  }
-}
-
-// Run all tests
-async function runTests() {
-  try {
-    const designerToken = await testDesignerLogin();
-    await testBusinessLogin();
-    await testAdminLogin();
-    await testInvalidLogin();
-    
-    if (designerToken) {
-      await testGetCurrentUser(designerToken);
-    }
-    
-    await testGetCurrentUserNoAuth();
-    
-    console.log('\n═══════════════════════════════════════════');
-    console.log('\n✅ ALL TESTS COMPLETED\n');
-    
-  } catch (error) {
-    console.log('\n❌ TEST SUITE ERROR:', error.message);
-  }
-}
-
-// Wait a moment for server to be ready
-setTimeout(runTests, 1000);
 </file>
 
 <file path="BackEnd/utils/placeholder.txt">
@@ -2423,6 +2201,103 @@ const Home = () => {
 export default Home;
 </file>
 
+<file path="FrontEnd/pages/InvoiceDetail.jsx">
+import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+
+function InvoiceDetail() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [invoice, setInvoice] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // TODO: Fetch invoice details from API
+    // For now, using placeholder data
+    setInvoice({
+      id,
+      invoiceNumber: `INV-${id}`,
+      date: new Date().toLocaleDateString(),
+      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString(),
+      amount: 0,
+      status: "pending",
+      items: []
+    });
+    setLoading(false);
+  }, [id]);
+
+  if (loading) {
+    return <div className="container mx-auto p-6">Loading...</div>;
+  }
+
+  return (
+    <div className="container mx-auto p-6">
+      <button
+        onClick={() => navigate(-1)}
+        className="mb-6 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded"
+      >
+        ← Back
+      </button>
+
+      <div className="bg-white shadow-md rounded-lg p-6">
+        <h1 className="text-3xl font-bold mb-6">Invoice Detail</h1>
+        
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div>
+            <p className="text-gray-600">Invoice Number</p>
+            <p className="font-semibold">{invoice.invoiceNumber}</p>
+          </div>
+          <div>
+            <p className="text-gray-600">Status</p>
+            <p className="font-semibold capitalize">{invoice.status}</p>
+          </div>
+          <div>
+            <p className="text-gray-600">Date</p>
+            <p className="font-semibold">{invoice.date}</p>
+          </div>
+          <div>
+            <p className="text-gray-600">Due Date</p>
+            <p className="font-semibold">{invoice.dueDate}</p>
+          </div>
+        </div>
+
+        <div className="border-t pt-4">
+          <h2 className="text-xl font-semibold mb-4">Items</h2>
+          {invoice.items.length === 0 ? (
+            <p className="text-gray-500">No items</p>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2">Description</th>
+                  <th className="text-right py-2">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invoice.items.map((item, index) => (
+                  <tr key={index} className="border-b">
+                    <td className="py-2">{item.description}</td>
+                    <td className="text-right py-2">${item.amount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <div className="mt-6 text-right">
+          <p className="text-2xl font-bold">
+            Total: ${invoice.amount}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default InvoiceDetail;
+</file>
+
 <file path="FrontEnd/pages/Invoices.jsx">
 import { useState, useEffect } from 'react';
 import { invoiceAPI } from '../services/api';
@@ -2730,10 +2605,11 @@ export default OrderDetail;
 </file>
 
 <file path="FrontEnd/pages/ResetPassword.jsx">
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../services/api';
 import { motion } from 'framer-motion';
+import { Eye, EyeOff, Check, X, Lock, ShieldCheck, ArrowLeft } from 'lucide-react';
 
 const ResetPassword = () => {
   const { token } = useParams();
@@ -2743,6 +2619,59 @@ const ResetPassword = () => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState({
+    score: 0,
+    label: '',
+    color: '',
+  });
+  const [validations, setValidations] = useState({
+    minLength: false,
+    hasUpperCase: false,
+    hasLowerCase: false,
+    hasNumber: false,
+    hasSpecialChar: false,
+  });
+
+  // Password strength checker
+  useEffect(() => {
+    if (!password) {
+      setPasswordStrength({ score: 0, label: '', color: '' });
+      return;
+    }
+
+    const checks = {
+      minLength: password.length >= 8,
+      hasUpperCase: /[A-Z]/.test(password),
+      hasLowerCase: /[a-z]/.test(password),
+      hasNumber: /[0-9]/.test(password),
+      hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+    };
+
+    setValidations(checks);
+
+    const score = Object.values(checks).filter(Boolean).length;
+    
+    let label = '';
+    let color = '';
+    
+    if (score <= 2) {
+      label = 'Weak';
+      color = 'bg-red-500';
+    } else if (score === 3) {
+      label = 'Fair';
+      color = 'bg-orange-500';
+    } else if (score === 4) {
+      label = 'Good';
+      color = 'bg-yellow-500';
+    } else {
+      label = 'Strong';
+      color = 'bg-green-500';
+    }
+
+    setPasswordStrength({ score, label, color });
+  }, [password]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -2765,57 +2694,223 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-lightgray-light py-12 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-mint/5 via-white to-mint/10 py-12 px-4">
       <motion.div
         className="max-w-md w-full"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
       >
-        <div className="bg-white rounded-2xl shadow-xl p-8 border-2 border-mint/20">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 border border-gray-100">
+          {/* Header with Icon */}
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-charcoal">Reset Your Password</h2>
-            <p className="text-sm text-charcoal-light mt-2">Enter your new password below.</p>
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+              className="inline-flex items-center justify-center w-16 h-16 bg-mint/10 rounded-full mb-4"
+            >
+              <ShieldCheck className="w-8 h-8 text-mint" />
+            </motion.div>
+            <h2 className="text-3xl font-bold text-charcoal mb-2">Reset Your Password</h2>
+            <p className="text-sm text-gray-600">
+              Create a strong, secure password for your ShockWave account
+            </p>
           </div>
+
           <form onSubmit={handleSubmit} className="space-y-6">
-            {error && <div className="bg-red-100 text-red-700 p-3 rounded-md text-sm">{error}</div>}
-            {message && (
-                <div className="bg-green-100 text-green-700 p-3 rounded-md text-sm">
-                    {message} Redirecting to login...
-                </div>
+            {/* Error Alert */}
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg text-sm flex items-start gap-3"
+              >
+                <X className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </motion.div>
             )}
+
+            {/* Success Alert */}
+            {message && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-lg text-sm flex items-start gap-3"
+              >
+                <Check className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium">{message}</p>
+                  <p className="text-xs mt-1">Redirecting to login page...</p>
+                </div>
+              </motion.div>
+            )}
+
+            {/* New Password Field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-charcoal mb-2">New Password</label>
-              <input
-                id="password"
-                type="password"
-                required
-                className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg"
-                placeholder="Enter new password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              <label htmlFor="password" className="block text-sm font-semibold text-charcoal mb-2">
+                New Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  className="w-full pl-10 pr-12 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mint focus:border-transparent transition-all"
+                  placeholder="Enter new password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+
+              {/* Password Strength Indicator */}
+              {password && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="mt-3 space-y-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(passwordStrength.score / 5) * 100}%` }}
+                        className={`h-full ${passwordStrength.color} transition-all duration-300`}
+                      />
+                    </div>
+                    <span className={`text-xs font-medium ${passwordStrength.color.replace('bg-', 'text-')}`}>
+                      {passwordStrength.label}
+                    </span>
+                  </div>
+
+                  {/* Password Requirements */}
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-1.5">
+                    <p className="text-xs font-semibold text-gray-700 mb-2">Password must contain:</p>
+                    {[
+                      { key: 'minLength', label: 'At least 8 characters' },
+                      { key: 'hasUpperCase', label: 'One uppercase letter' },
+                      { key: 'hasLowerCase', label: 'One lowercase letter' },
+                      { key: 'hasNumber', label: 'One number' },
+                      { key: 'hasSpecialChar', label: 'One special character (!@#$%^&*)' },
+                    ].map(({ key, label }) => (
+                      <div key={key} className="flex items-center gap-2 text-xs">
+                        {validations[key] ? (
+                          <Check className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <X className="w-4 h-4 text-gray-400" />
+                        )}
+                        <span className={validations[key] ? 'text-green-700' : 'text-gray-600'}>
+                          {label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
             </div>
+
+            {/* Confirm Password Field */}
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-charcoal mb-2">Confirm New Password</label>
-              <input
-                id="confirmPassword"
-                type="password"
-                required
-                className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg"
-                placeholder="Confirm new password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-              />
+              <label htmlFor="confirmPassword" className="block text-sm font-semibold text-charcoal mb-2">
+                Confirm New Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  required
+                  className={`w-full pl-10 pr-12 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-mint transition-all ${
+                    confirmPassword && password !== confirmPassword
+                      ? 'border-red-300 focus:border-red-300'
+                      : 'border-gray-200 focus:border-transparent'
+                  }`}
+                  placeholder="Confirm new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+              {confirmPassword && password !== confirmPassword && (
+                <motion.p
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-xs text-red-600 mt-1.5 flex items-center gap-1"
+                >
+                  <X className="w-3 h-3" />
+                  Passwords do not match
+                </motion.p>
+              )}
+              {confirmPassword && password === confirmPassword && (
+                <motion.p
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-xs text-green-600 mt-1.5 flex items-center gap-1"
+                >
+                  <Check className="w-3 h-3" />
+                  Passwords match
+                </motion.p>
+              )}
             </div>
+
+            {/* Submit Button */}
             <button
               type="submit"
-              disabled={isLoading || message}
-              className="w-full bg-mint text-white py-3 rounded-lg font-medium hover:bg-mint-dark disabled:opacity-50"
+              disabled={isLoading || message || password !== confirmPassword || passwordStrength.score < 3}
+              className="w-full bg-gradient-to-r from-mint to-mint-dark text-white py-3 rounded-lg font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none flex items-center justify-center gap-2"
             >
-              {isLoading ? 'Resetting...' : 'Reset Password'}
+              {isLoading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Resetting Password...
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-5 h-5" />
+                  Reset Password
+                </>
+              )}
             </button>
+
+            {/* Back to Login */}
+            <div className="text-center pt-2">
+              <Link
+                to="/login"
+                className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-mint transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Login
+              </Link>
+            </div>
           </form>
         </div>
+
+        {/* Security Note */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="mt-6 text-center"
+        >
+          <p className="text-xs text-gray-500 flex items-center justify-center gap-2">
+            <Lock className="w-3 h-3" />
+            Your password is encrypted and secure
+          </p>
+        </motion.div>
       </motion.div>
     </div>
   );
@@ -3822,278 +3917,6 @@ const verifyDatabase = async () => {
 verifyDatabase();
 </file>
 
-<file path="BackEnd/config/database.js">
-import mongoose from 'mongoose';
-
-const connectDB = async () => {
-  try {
-    const conn = await mongoose.connect(process.env.MONGO_URI);
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
-  } catch (error) {
-    console.error(`❌ Error connecting to MongoDB: ${error.message}`);
-    console.error('\n💡 Make sure MongoDB is running!');
-    console.error('   - Windows: Run "net start MongoDB" or start mongod.exe manually');
-    console.error('   - Install MongoDB from: https://www.mongodb.com/try/download/community\n');
-    process.exit(1);
-  }
-};
-
-export default connectDB;
-</file>
-
-<file path="BackEnd/controllers/authController.js">
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { validationResult } from 'express-validator';
-import User from '../models/userModel.js';
-import { generateVerificationToken, generateResetToken } from '../utils/tokenUtils.js';
-import { sendVerificationEmail, sendPasswordResetEmail } from '../services/emailService.js';
-
-// Generate JWT tokens
-const generateTokens = (user) => {
-  const accessToken = jwt.sign(
-    { userId: user.id, role: user.role }, 
-    process.env.JWT_SECRET, 
-    { expiresIn: '15m' }
-  );
-  
-  const refreshToken = jwt.sign(
-    { userId: user.id }, 
-    process.env.JWT_REFRESH_SECRET, 
-    { expiresIn: '7d' }
-  );
-
-  return { accessToken, refreshToken };
-};
-
-// Set refresh token cookie
-const setRefreshTokenCookie = (res, refreshToken) => {
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-    });
-};
-
-// @desc    Register a new user
-// @route   POST /api/auth/register
-// @access  Public
-export const registerUser = async (req, res, next) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { email, password, name, role } = req.body;
-
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(409).json({ error: 'An account with this email already exists' });
-    }
-    
-    const verificationToken = generateVerificationToken();
-    const newUser = new User({
-      email,
-      password_hash: password, // Will be hashed by userModel pre-save hook
-      name,
-      role,
-      email_verification_token: verificationToken,
-      email_verification_expires: Date.now() + 3600000, // 1 hour from now
-    });
-
-    await newUser.save();
-    
-    // Send verification email (mocked for now)
-    await sendVerificationEmail(newUser.email, verificationToken);
-
-    res.status(201).json({
-      message: 'User created successfully. Please check your email to verify your account.',
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-
-// @desc    Authenticate user & get token
-// @route   POST /api/auth/login
-// @access  Public
-export const loginUser = async (req, res, next) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { email, password } = req.body;
-
-    const user = await User.findOne({ email }).select('+password_hash');
-
-    if (!user || !user.is_active) {
-      return res.status(401).json({ error: 'Invalid credentials or account disabled' });
-    }
-    
-    // if (!user.is_email_verified) {
-    //     return res.status(403).json({ error: 'Please verify your email before logging in.' });
-    // }
-
-    const isValidPassword = await user.matchPassword(password);
-    if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    user.last_login = new Date();
-    await user.save();
-
-    const { accessToken, refreshToken } = generateTokens(user);
-
-    setRefreshTokenCookie(res, refreshToken);
-
-    res.json({
-      message: 'Login successful',
-      user: { id: user.id, email: user.email, name: user.name, role: user.role },
-      accessToken
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-
-// @desc    Refresh access token
-// @route   POST /api/auth/refresh
-// @access  Public
-export const refreshToken = async (req, res, next) => {
-  try {
-    const { refreshToken } = req.cookies;
-    if (!refreshToken) {
-      return res.status(401).json({ error: 'Refresh token required' });
-    }
-
-    jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, async (err, decoded) => {
-      if (err) {
-        return res.status(403).json({ error: 'Invalid refresh token' });
-      }
-
-      const user = await User.findOne({ _id: decoded.userId, is_active: true })
-        .select('id email name role');
-      
-      if (!user) {
-        return res.status(403).json({ error: 'User not found' });
-      }
-
-      const { accessToken } = generateTokens(user);
-      res.json({ accessToken, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// @desc    Logout user
-// @route   POST /api/auth/logout
-// @access  Private
-export const logoutUser = (req, res) => {
-  res.clearCookie('refreshToken');
-  res.json({ message: 'Logged out successfully' });
-};
-
-// @desc    Get current user profile
-// @route   GET /api/auth/me
-// @access  Private
-export const getMe = (req, res) => {
-  res.json({ user: req.user });
-};
-
-
-// @desc    Verify user email
-// @route   GET /api/auth/verify-email/:token
-// @access  Public
-export const verifyEmail = async (req, res, next) => {
-    try {
-        const { token } = req.params;
-        const user = await User.findOne({
-            email_verification_token: token,
-            email_verification_expires: { $gt: Date.now() },
-        });
-        
-        if (!user) {
-            return res.status(400).json({ error: 'Invalid or expired verification token.' });
-        }
-        
-        user.is_email_verified = true;
-        user.email_verification_token = undefined;
-        user.email_verification_expires = undefined;
-        await user.save();
-        
-        res.json({ message: 'Email verified successfully. You can now log in.' });
-        
-    } catch (error) {
-        next(error);
-    }
-};
-
-
-// @desc    Request password reset
-// @route   POST /api/auth/forgot-password
-// @access  Public
-export const forgotPassword = async (req, res, next) => {
-    try {
-        const { email } = req.body;
-        const user = await User.findOne({ email });
-        
-        if (!user) {
-            return res.status(404).json({ error: 'User with that email does not exist.' });
-        }
-        
-        const resetToken = generateResetToken();
-        user.password_reset_token = resetToken;
-        user.password_reset_expires = Date.now() + 3600000; // 1 hour
-        await user.save();
-        
-        // Send password reset email
-        await sendPasswordResetEmail(user.email, resetToken);
-        
-        res.json({ message: 'Password reset email sent. Please check your inbox.' });
-        
-    } catch (error) {
-        next(error);
-    }
-};
-
-// @desc    Reset password with token
-// @route   POST /api/auth/reset-password/:token
-// @access  Public
-export const resetPassword = async (req, res, next) => {
-    try {
-        const { token } = req.params;
-        const { password } = req.body;
-        
-        const user = await User.findOne({
-            password_reset_token: token,
-            password_reset_expires: { $gt: Date.now() },
-        });
-        
-        if (!user) {
-            return res.status(400).json({ error: 'Invalid or expired password reset token.' });
-        }
-        
-        // The pre-save hook in userModel will hash the password
-        user.password_hash = password;
-        user.password_reset_token = undefined;
-        user.password_reset_expires = undefined;
-        await user.save();
-        
-        res.json({ message: 'Password has been reset successfully.' });
-
-    } catch (error) {
-        next(error);
-    }
-};
-</file>
-
 <file path="BackEnd/controllers/dashboardController.js">
 import Order from '../models/orderModel.js';
 import Review from '../models/reviewModel.js';
@@ -4620,6 +4443,75 @@ const Proposal = mongoose.model('Proposal', proposalSchema);
 export default Proposal;
 </file>
 
+<file path="BackEnd/models/userModel.js">
+// BackEnd/models/userModel.js
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
+
+const userSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true,
+    index: true,
+  },
+  username: {
+    type: String,
+    unique: true,
+    sparse: true, // allows null but unique when exists
+  },
+  password_hash: {
+    type: String,
+    required: true,
+  },
+  role: {
+    type: String,
+    enum: ['designer', 'business', 'admin'],
+    default: 'designer',
+  },
+  is_active: {
+    type: Boolean,
+    default: true,
+  },
+  profile: {
+    avatar_url: { type: String, default: '' },
+    bio: { type: String, default: '' },
+    skills: [String],
+    hourly_rate: { type: Number },
+    company_name: { type: String },
+    website: { type: String },
+    location: { type: String },
+  },
+  saved_listings: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Listing',
+  }],
+}, {
+  timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
+});
+
+// Virtual for password
+userSchema.virtual('password').set(function(password) {
+  this.password_hash = bcrypt.hashSync(password, 12);
+});
+
+// Method to compare password
+userSchema.methods.comparePassword = function(password) {
+  return bcrypt.compareSync(password, this.password_hash);
+};
+
+const User = mongoose.model('User', userSchema);
+
+export default User;
+</file>
+
 <file path="BackEnd/routes/adminRoutes.js">
 import express from 'express';
 import {
@@ -4860,7 +4752,7 @@ const init = async () => {
   console.log('\n🚀 Initializing ShockWave Digital Marketplace with MongoDB...\n');
   await connectDB();
   await clearDatabase();
-  await createTestAccounts();
+  // await createTestAccounts(); // COMMENTED OUT - No test accounts in production
   console.log('✅ Initialization complete!\n');
   await mongoose.disconnect();
   process.exit(0);
@@ -5614,100 +5506,6 @@ const OrdersList = ({ orders, title }) => (
 export default Dashboard;
 </file>
 
-<file path="FrontEnd/pages/Login.jsx">
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { motion } from 'framer-motion';
-
-const Login = () => {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const { login, error } = useAuth();
-  const navigate = useNavigate();
-
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    try {
-      await login(formData.email, formData.password);
-      navigate('/dashboard');
-    } catch (err) {
-      console.error('Login failed:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-lightgray-light via-white to-mint/5 py-12 px-4 sm:px-6 lg:px-8">
-      <motion.div 
-        className="max-w-md w-full"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <div className="bg-white rounded-2xl shadow-xl p-8 border-2 border-mint/20">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-charcoal mb-2">Welcome Back</h2>
-            <p className="text-sm text-charcoal-light">Sign in to continue to ShockWave</p>
-          </div>
-          
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <motion.div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
-                {error}
-              </motion.div>
-            )}
-            
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-charcoal mb-2">Email</label>
-              <input id="email" name="email" type="email" required className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mint" placeholder="Enter your email" value={formData.email} onChange={handleChange}/>
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-charcoal mb-2">Password</label>
-              <input id="password" name="password" type="password" required className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mint" placeholder="Enter your password" value={formData.password} onChange={handleChange}/>
-            </div>
-            
-            <div className="text-right text-sm">
-                <Link to="/forgot-password" className="font-medium text-mint hover:text-mint-dark">
-                    Forgot password?
-                </Link>
-            </div>
-
-            <button type="submit" disabled={isLoading} className="w-full bg-mint text-white py-3 rounded-lg font-medium hover:bg-mint-dark disabled:opacity-50">
-              {isLoading ? 'Signing in...' : 'Sign In'}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-charcoal-light">
-              Don't have an account?{' '}
-              <Link to="/register" className="font-medium text-mint hover:text-mint-dark">
-                Register here
-              </Link>
-            </p>
-          </div>
-        </div>
-      </motion.div>
-    </div>
-  );
-};
-
-export default Login;
-</file>
-
 <file path="FrontEnd/pages/Register.jsx">
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -5917,6 +5715,278 @@ export default {
   },
   plugins: [],
 }
+</file>
+
+<file path="BackEnd/config/database.js">
+import mongoose from 'mongoose';
+
+const connectDB = async () => {
+  try {
+    const conn = await mongoose.connect(process.env.MONGO_URI);
+    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+  } catch (error) {
+    console.error(`❌ Error connecting to MongoDB: ${error.message}`);
+    console.error('\n💡 Make sure MongoDB is running!');
+    console.error('   - Windows: Run "net start MongoDB" or start mongod.exe manually');
+    console.error('   - Install MongoDB from: https://www.mongodb.com/try/download/community\n');
+    process.exit(1);
+  }
+};
+
+export default connectDB;
+</file>
+
+<file path="BackEnd/controllers/authController.js">
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { validationResult } from 'express-validator';
+import User from '../models/userModel.js';
+import { generateVerificationToken, generateResetToken } from '../utils/tokenUtils.js';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../services/emailService.js';
+
+// Generate JWT tokens
+const generateTokens = (user) => {
+  const accessToken = jwt.sign(
+    { userId: user.id, role: user.role }, 
+    process.env.JWT_SECRET, 
+    { expiresIn: '15m' }
+  );
+  
+  const refreshToken = jwt.sign(
+    { userId: user.id }, 
+    process.env.JWT_REFRESH_SECRET, 
+    { expiresIn: '7d' }
+  );
+
+  return { accessToken, refreshToken };
+};
+
+// Set refresh token cookie
+const setRefreshTokenCookie = (res, refreshToken) => {
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+};
+
+// @desc    Register a new user
+// @route   POST /api/auth/register
+// @access  Public
+export const registerUser = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email, password, name, role } = req.body;
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({ error: 'An account with this email already exists' });
+    }
+    
+    const verificationToken = generateVerificationToken();
+    const newUser = new User({
+      email,
+      password_hash: password, // Will be hashed by userModel pre-save hook
+      name,
+      role,
+      email_verification_token: verificationToken,
+      email_verification_expires: Date.now() + 3600000, // 1 hour from now
+    });
+
+    await newUser.save();
+    
+    // Send verification email (mocked for now)
+    await sendVerificationEmail(newUser.email, verificationToken);
+
+    res.status(201).json({
+      message: 'User created successfully. Please check your email to verify your account.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+// @desc    Authenticate user & get token
+// @route   POST /api/auth/login
+// @access  Public
+export const loginUser = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email }).select('+password_hash');
+
+    if (!user || !user.is_active) {
+      return res.status(401).json({ error: 'Invalid credentials or account disabled' });
+    }
+    
+    // if (!user.is_email_verified) {
+    //     return res.status(403).json({ error: 'Please verify your email before logging in.' });
+    // }
+
+    const isValidPassword = user.comparePassword(password);
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    user.last_login = new Date();
+    await user.save();
+
+    const { accessToken, refreshToken } = generateTokens(user);
+
+    setRefreshTokenCookie(res, refreshToken);
+
+    res.json({
+      message: 'Login successful',
+      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+      accessToken
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+// @desc    Refresh access token
+// @route   POST /api/auth/refresh
+// @access  Public
+export const refreshToken = async (req, res, next) => {
+  try {
+    const { refreshToken } = req.cookies;
+    if (!refreshToken) {
+      return res.status(401).json({ error: 'Refresh token required' });
+    }
+
+    jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, async (err, decoded) => {
+      if (err) {
+        return res.status(403).json({ error: 'Invalid refresh token' });
+      }
+
+      const user = await User.findOne({ _id: decoded.userId, is_active: true })
+        .select('id email name role');
+      
+      if (!user) {
+        return res.status(403).json({ error: 'User not found' });
+      }
+
+      const { accessToken } = generateTokens(user);
+      res.json({ accessToken, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Logout user
+// @route   POST /api/auth/logout
+// @access  Private
+export const logoutUser = (req, res) => {
+  res.clearCookie('refreshToken');
+  res.json({ message: 'Logged out successfully' });
+};
+
+// @desc    Get current user profile
+// @route   GET /api/auth/me
+// @access  Private
+export const getMe = (req, res) => {
+  res.json({ user: req.user });
+};
+
+
+// @desc    Verify user email
+// @route   GET /api/auth/verify-email/:token
+// @access  Public
+export const verifyEmail = async (req, res, next) => {
+    try {
+        const { token } = req.params;
+        const user = await User.findOne({
+            email_verification_token: token,
+            email_verification_expires: { $gt: Date.now() },
+        });
+        
+        if (!user) {
+            return res.status(400).json({ error: 'Invalid or expired verification token.' });
+        }
+        
+        user.is_email_verified = true;
+        user.email_verification_token = undefined;
+        user.email_verification_expires = undefined;
+        await user.save();
+        
+        res.json({ message: 'Email verified successfully. You can now log in.' });
+        
+    } catch (error) {
+        next(error);
+    }
+};
+
+
+// @desc    Request password reset
+// @route   POST /api/auth/forgot-password
+// @access  Public
+export const forgotPassword = async (req, res, next) => {
+    try {
+        const { email } = req.body;
+        const user = await User.findOne({ email });
+        
+        if (!user) {
+            return res.status(404).json({ error: 'User with that email does not exist.' });
+        }
+        
+        const resetToken = generateResetToken();
+        user.password_reset_token = resetToken;
+        user.password_reset_expires = Date.now() + 3600000; // 1 hour
+        await user.save();
+        
+        // Send password reset email
+        await sendPasswordResetEmail(user.email, resetToken);
+        
+        res.json({ message: 'Password reset email sent. Please check your inbox.' });
+        
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc    Reset password with token
+// @route   POST /api/auth/reset-password/:token
+// @access  Public
+export const resetPassword = async (req, res, next) => {
+    try {
+        const { token } = req.params;
+        const { password } = req.body;
+        
+        const user = await User.findOne({
+            password_reset_token: token,
+            password_reset_expires: { $gt: Date.now() },
+        });
+        
+        if (!user) {
+            return res.status(400).json({ error: 'Invalid or expired password reset token.' });
+        }
+        
+        // The pre-save hook in userModel will hash the password
+        user.password_hash = password;
+        user.password_reset_token = undefined;
+        user.password_reset_expires = undefined;
+        await user.save();
+        
+        res.json({ message: 'Password has been reset successfully.' });
+
+    } catch (error) {
+        next(error);
+    }
+};
 </file>
 
 <file path="BackEnd/middleware/auth.js">
@@ -6225,6 +6295,100 @@ function App() {
 }
 
 export default App;
+</file>
+
+<file path="FrontEnd/pages/Login.jsx">
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { motion } from 'framer-motion';
+
+const Login = () => {
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const { login, error } = useAuth();
+  const navigate = useNavigate();
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      await login(formData.email, formData.password);
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Login failed:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-lightgray-light via-white to-mint/5 py-12 px-4 sm:px-6 lg:px-8">
+      <motion.div 
+        className="max-w-md w-full"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="bg-white rounded-2xl shadow-xl p-8 border-2 border-mint/20">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-charcoal mb-2">Welcome Back</h2>
+            <p className="text-sm text-charcoal-light">Sign in to continue to ShockWave</p>
+          </div>
+          
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <motion.div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
+                {error}
+              </motion.div>
+            )}
+            
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-charcoal mb-2">Email</label>
+              <input id="email" name="email" type="email" required className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mint" placeholder="Enter your email" value={formData.email} onChange={handleChange}/>
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-charcoal mb-2">Password</label>
+              <input id="password" name="password" type="password" required className="w-full px-4 py-3 border-2 border-lightgray-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mint" placeholder="Enter your password" value={formData.password} onChange={handleChange}/>
+            </div>
+            
+            <div className="text-right text-sm">
+                <Link to="/forgot-password" className="font-medium text-mint hover:text-mint-dark">
+                    Forgot password?
+                </Link>
+            </div>
+
+            <button type="submit" disabled={isLoading} className="w-full bg-mint text-white py-3 rounded-lg font-medium hover:bg-mint-dark disabled:opacity-50">
+              {isLoading ? 'Signing in...' : 'Sign In'}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <p className="text-sm text-charcoal-light">
+              Don't have an account?{' '}
+              <Link to="/register" className="font-medium text-mint hover:text-mint-dark">
+                Register here
+              </Link>
+            </p>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+export default Login;
 </file>
 
 <file path="FrontEnd/pages/Messages.jsx">
@@ -6813,150 +6977,6 @@ const ProfileEdit = () => {
 };
 
 export default ProfileEdit;
-</file>
-
-<file path="FrontEnd/services/api.js">
-import axios from 'axios';
-
-// Get the base URL from environment variables, with a fallback for local development
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-// --- 1. AXIOS INSTANCE CREATION ---
-// This is the centralized API client. All requests from the frontend will go through this instance.
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true, // Crucial for sending cookies (like the refresh token) to the backend
-});
-
-// --- 2. REQUEST INTERCEPTOR ---
-// This function runs BEFORE every single API request is sent.
-api.interceptors.request.use(
-  (config) => {
-    // Get the access token from localStorage.
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      // If a token exists, automatically add the 'Authorization' header to the request.
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config; // Allow the request to proceed with the new header.
-  },
-  (error) => {
-    // If there's an error creating the request, reject the promise.
-    return Promise.reject(error);
-  }
-);
-
-// --- 3. RESPONSE INTERCEPTOR ---
-// This function runs AFTER an API response is received, but BEFORE it's passed to the component.
-api.interceptors.response.use(
-  // If the response is successful (e.g., status 200), just pass it through.
-  (response) => response,
-  // If the response has an error (e.g., status 403), this logic is triggered.
-  async (error) => {
-    const originalRequest = error.config;
-    
-    // This block handles expired access tokens. A 403 status is what our backend sends for this.
-    // The `!originalRequest._retry` flag prevents an infinite loop of retries.
-    if (error.response?.status === 403 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      try {
-        // Attempt to get a new access token using the refresh token cookie.
-        const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true });
-        
-        // Save the new access token.
-        localStorage.setItem('accessToken', data.accessToken);
-        
-        // Update the authorization header on our original failed request.
-        originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
-        
-        // Retry the original request with the new token.
-        return api(originalRequest);
-      } catch (refreshError) {
-        // If the refresh fails, the user's session is truly expired.
-        // Clear the token and redirect to the login page.
-        localStorage.removeItem('accessToken');
-        window.location.href = '/login';
-        return Promise.reject(refreshError);
-      }
-    }
-    
-    // For any other errors, just pass them along.
-    return Promise.reject(error);
-  }
-);
-
-// --- 4. MODULAR API OBJECTS ---
-// Grouping API calls by resource for clean code and easy importing.
-
-export const authAPI = {
-  register: (userData) => api.post('/auth/register', userData),
-  login: (email, password) => api.post('/auth/login', { email, password }),
-  logout: () => api.post('/auth/logout'),
-  getCurrentUser: () => api.get('/auth/me'),
-  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
-  resetPassword: (token, password) => api.post(`/auth/reset-password/${token}`, { password }),
-};
-
-export const profileAPI = {
-  getProfile: (id) => api.get(`/profiles/${id}`),
-  updateProfile: (id, data) => api.put(`/profiles/${id}`, data),
-  searchProfiles: (params) => api.get('/profiles', { params }),
-};
-
-export const dashboardAPI = {
-  getStats: () => api.get('/dashboard/stats'),
-};
-
-export const listingAPI = {
-  getListings: () => api.get('/listings'),
-  getListing: (id) => api.get(`/listings/${id}`),
-  createListing: (data) => api.post('/listings', data),
-  submitProposal: (listingId, data) => api.post(`/listings/${listingId}/proposals`, data),
-  getProposalsForListing: (listingId) => api.get(`/listings/${listingId}/proposals`),
-  updateProposalStatus: (listingId, proposalId, status) => api.patch(`/listings/${listingId}/proposals/${proposalId}`, { status }),
-  toggleBookmark: (listingId) => api.post(`/listings/${listingId}/bookmark`),
-  getBookmarkedListings: () => api.get('/listings/bookmarked'),
-};
-
-export const orderAPI = {
-  createOrder: (data) => api.post('/orders', data),
-  getOrders: () => api.get('/orders'),
-  getOrder: (id) => api.get(`/orders/${id}`),
-  updateOrderStatus: (id, status) => api.patch(`/orders/${id}/status`, { status }),
-  postProgressUpdate: (orderId, data) => api.post(`/orders/${orderId}/updates`, data),
-};
-
-export const messageAPI = {
-  getThreads: () => api.get('/messages/threads'),
-  getMessages: (participantId) => api.get(`/messages/threads/${participantId}`),
-};
-
-export const reviewAPI = {
-  createReview: (data) => api.post('/reviews', data),
-  getReviewsForUser: (userId) => api.get(`/reviews/user/${userId}`),
-};
-
-export const uploadAPI = {
-  uploadAvatar: (formData) => api.post('/uploads/avatar', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-  uploadPortfolioItem: (formData) => api.post('/uploads/portfolio', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-  deletePortfolioItem: (id) => api.delete(`/uploads/portfolio/${id}`),
-};
-
-export const adminAPI = {
-  getUsers: () => api.get('/admin/users'),
-  updateUserStatus: (id, is_active) => api.patch(`/admin/users/${id}/status`, { is_active }),
-  getAnalytics: () => api.get('/admin/analytics'),
-  getAllMessageThreads: () => api.get('/admin/messages'),
-  getMessagesForModeration: (threadId) => api.get(`/admin/messages/${threadId}`),
-  toggleFlagThread: (threadId) => api.patch(`/admin/messages/${threadId}/flag`),
-};
-
-export const invoiceAPI = {
-    getInvoices: () => api.get('/invoices'),
-    createInvoice: (data) => api.post('/invoices', data),
-};
-
-export default api;
 </file>
 
 <file path="BackEnd/controllers/listingsController.js">
@@ -7590,45 +7610,6 @@ export const getReviewsForUser = async (req, res, next) => {
 };
 </file>
 
-<file path="BackEnd/package.json">
-{
-  "name": "digital-marketplace-server",
-  "version": "1.0.0",
-  "description": "Backend API for Digital Marketplace",
-  "main": "app.js",
-  "type": "module",
-  "scripts": {
-    "dev": "nodemon app.js",
-    "start": "node app.js",
-    "test": "jest --watchAll",
-    "test:coverage": "jest --coverage",
-    "db:init": "node scripts/init.js"
-  },
-  "dependencies": {
-    "bcrypt": "^5.1.1",
-    "cookie-parser": "^1.4.7",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.1",
-    "express-rate-limit": "^7.4.1",
-    "express-validator": "^7.2.0",
-    "helmet": "^8.0.0",
-    "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.4.0",
-    "multer": "^1.4.5-lts.1",
-    "node-fetch": "^3.3.2",
-    "nodemailer": "^6.9.18",
-    "sharp": "^0.33.5",
-    "socket.io": "4.7.5"
-  },
-  "devDependencies": {
-    "jest": "^29.7.0",
-    "nodemon": "^3.1.7",
-    "supertest": "^7.0.0"
-  }
-}
-</file>
-
 <file path="FrontEnd/pages/ListingDetail.jsx">
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
@@ -7755,6 +7736,150 @@ const InvoiceDetail = () => {
 export default InvoiceDetail;
 </file>
 
+<file path="FrontEnd/services/api.js">
+import axios from 'axios';
+
+// Get the base URL from environment variables, with a fallback for local development
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+// --- 1. AXIOS INSTANCE CREATION ---
+// This is the centralized API client. All requests from the frontend will go through this instance.
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  withCredentials: true, // Crucial for sending cookies (like the refresh token) to the backend
+});
+
+// --- 2. REQUEST INTERCEPTOR ---
+// This function runs BEFORE every single API request is sent.
+api.interceptors.request.use(
+  (config) => {
+    // Get the access token from localStorage.
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      // If a token exists, automatically add the 'Authorization' header to the request.
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config; // Allow the request to proceed with the new header.
+  },
+  (error) => {
+    // If there's an error creating the request, reject the promise.
+    return Promise.reject(error);
+  }
+);
+
+// --- 3. RESPONSE INTERCEPTOR ---
+// This function runs AFTER an API response is received, but BEFORE it's passed to the component.
+api.interceptors.response.use(
+  // If the response is successful (e.g., status 200), just pass it through.
+  (response) => response,
+  // If the response has an error (e.g., status 403), this logic is triggered.
+  async (error) => {
+    const originalRequest = error.config;
+    
+    // This block handles expired access tokens. A 403 status is what our backend sends for this.
+    // The `!originalRequest._retry` flag prevents an infinite loop of retries.
+    if (error.response?.status === 403 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      try {
+        // Attempt to get a new access token using the refresh token cookie.
+        const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true });
+        
+        // Save the new access token.
+        localStorage.setItem('accessToken', data.accessToken);
+        
+        // Update the authorization header on our original failed request.
+        originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+        
+        // Retry the original request with the new token.
+        return api(originalRequest);
+      } catch (refreshError) {
+        // If the refresh fails, the user's session is truly expired.
+        // Clear the token and redirect to the login page.
+        localStorage.removeItem('accessToken');
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      }
+    }
+    
+    // For any other errors, just pass them along.
+    return Promise.reject(error);
+  }
+);
+
+// --- 4. MODULAR API OBJECTS ---
+// Grouping API calls by resource for clean code and easy importing.
+
+export const authAPI = {
+  register: (userData) => api.post('/auth/register', userData),
+  login: (email, password) => api.post('/auth/login', { email, password }),
+  logout: () => api.post('/auth/logout'),
+  getCurrentUser: () => api.get('/auth/me'),
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  resetPassword: (token, password) => api.post(`/auth/reset-password/${token}`, { password }),
+};
+
+export const profileAPI = {
+  getProfile: (id) => api.get(`/profiles/${id}`),
+  updateProfile: (id, data) => api.put(`/profiles/${id}`, data),
+  searchProfiles: (params) => api.get('/profiles', { params }),
+};
+
+export const dashboardAPI = {
+  getStats: () => api.get('/dashboard/stats'),
+};
+
+export const listingAPI = {
+  getListings: () => api.get('/listings'),
+  getListing: (id) => api.get(`/listings/${id}`),
+  createListing: (data) => api.post('/listings', data),
+  submitProposal: (listingId, data) => api.post(`/listings/${listingId}/proposals`, data),
+  getProposalsForListing: (listingId) => api.get(`/listings/${listingId}/proposals`),
+  updateProposalStatus: (listingId, proposalId, status) => api.patch(`/listings/${listingId}/proposals/${proposalId}`, { status }),
+  toggleBookmark: (listingId) => api.post(`/listings/${listingId}/bookmark`),
+  getBookmarkedListings: () => api.get('/listings/bookmarked'),
+};
+
+export const orderAPI = {
+  createOrder: (data) => api.post('/orders', data),
+  getOrders: () => api.get('/orders'),
+  getOrder: (id) => api.get(`/orders/${id}`),
+  updateOrderStatus: (id, status) => api.patch(`/orders/${id}/status`, { status }),
+  postProgressUpdate: (orderId, data) => api.post(`/orders/${orderId}/updates`, data),
+};
+
+export const messageAPI = {
+  getThreads: () => api.get('/messages/threads'),
+  getMessages: (participantId) => api.get(`/messages/threads/${participantId}`),
+};
+
+export const reviewAPI = {
+  createReview: (data) => api.post('/reviews', data),
+  getReviewsForUser: (userId) => api.get(`/reviews/user/${userId}`),
+};
+
+export const uploadAPI = {
+  uploadAvatar: (formData) => api.post('/uploads/avatar', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  uploadPortfolioItem: (formData) => api.post('/uploads/portfolio', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  deletePortfolioItem: (id) => api.delete(`/uploads/portfolio/${id}`),
+};
+
+export const adminAPI = {
+  getUsers: () => api.get('/admin/users'),
+  updateUserStatus: (id, is_active) => api.patch(`/admin/users/${id}/status`, { is_active }),
+  getAnalytics: () => api.get('/admin/analytics'),
+  getAllMessageThreads: () => api.get('/admin/messages'),
+  getMessagesForModeration: (threadId) => api.get(`/admin/messages/${threadId}`),
+  toggleFlagThread: (threadId) => api.patch(`/admin/messages/${threadId}/flag`),
+};
+
+export const invoiceAPI = {
+    getInvoices: () => api.get('/invoices'),
+    createInvoice: (data) => api.post('/invoices', data),
+};
+
+export default api;
+</file>
+
 <file path="package.json">
 {
   "name": "digital-marketplace-root",
@@ -7793,6 +7918,46 @@ export default InvoiceDetail;
 }
 </file>
 
+<file path="BackEnd/package.json">
+{
+  "name": "digital-marketplace-server",
+  "version": "1.0.0",
+  "description": "Backend API for Digital Marketplace",
+  "main": "app.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon app.js",
+    "start": "node app.js",
+    "test": "jest --watchAll",
+    "test:coverage": "jest --coverage",
+    "db:init": "node scripts/init.js"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.1",
+    "express-rate-limit": "^7.4.1",
+    "express-validator": "^7.2.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.4.0",
+    "multer": "^1.4.5-lts.1",
+    "node-fetch": "^3.3.2",
+    "nodemailer": "^6.9.18",
+    "sharp": "^0.33.5",
+    "socket.io": "4.7.5"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.7",
+    "supertest": "^7.0.0"
+  }
+}
+</file>
+
 <file path="BackEnd/app.js">
 import dotenv from 'dotenv';
 import path from 'path';
@@ -7802,12 +7967,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const envPath = path.join(__dirname, '.env');
-console.log('📁 Looking for .env at:', envPath);
 const result = dotenv.config({ path: envPath });
-console.log('📄 Dotenv result:', result.error ? `ERROR: ${result.error.message}` : 'SUCCESS');
-if (result.parsed) {
-  console.log('🔓 Parsed from .env:', Object.keys(result.parsed));
-}
 
 import express from 'express';
 import cors from 'cors';

@@ -14,17 +14,6 @@ const transporter = nodemailer.createTransport({
 });
 
 const sendEmail = async (to, subject, html) => {
-  // In development, log the email to the console instead of sending
-  if (process.env.NODE_ENV === 'development') {
-    console.log('--- MOCKED EMAIL ---');
-    console.log(`To: ${to}`);
-    console.log(`Subject: ${subject}`);
-    console.log('Body (HTML):');
-    console.log(html);
-    console.log('--------------------');
-    return Promise.resolve();
-  }
-
   try {
     await transporter.sendMail({
       from: `"ShockWave Platform" <${process.env.SMTP_USER}>`,
@@ -32,9 +21,10 @@ const sendEmail = async (to, subject, html) => {
       subject,
       html,
     });
-    console.log(`Email sent to ${to}`);
+    console.log(`✅ Email sent to ${to} via ${process.env.SMTP_HOST}`);
   } catch (error) {
-    console.error(`Error sending email to ${to}:`, error);
+    console.error(`❌ Error sending email to ${to}:`, error.message);
+    throw error;
   }
 };
 

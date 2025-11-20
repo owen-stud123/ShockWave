@@ -4,9 +4,10 @@ import { useAuth } from '../context/AuthContext';
 import { messageAPI } from '../services/api';
 import { io } from 'socket.io-client';
 
-const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', {
   autoConnect: false, // Do not connect automatically
-  transports: ['polling', 'websocket']
+  transports: ['polling', 'websocket'],
+  withCredentials: true
 });
 
 const Messages = () => {

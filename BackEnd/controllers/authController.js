@@ -49,9 +49,23 @@ export const registerUser = async (req, res, next) => {
       return res.status(409).json({ error: 'An account with this email already exists' });
     }
     
+    // Generate username from email
+    const emailPrefix = email.split('@')[0];
+    let username = emailPrefix.replace(/[^a-zA-Z0-9]/g, '_');
+    
+    // Ensure username is unique
+    let usernameExists = await User.findOne({ username });
+    let counter = 1;
+    while (usernameExists) {
+      username = `${emailPrefix.replace(/[^a-zA-Z0-9]/g, '_')}${counter}`;
+      usernameExists = await User.findOne({ username });
+      counter++;
+    }
+    
     const verificationToken = generateVerificationToken();
     const newUser = new User({
       email,
+      username,
       password_hash: password, // Will be hashed by userModel pre-save hook
       name,
       role,

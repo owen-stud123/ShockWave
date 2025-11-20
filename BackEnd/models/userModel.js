@@ -14,6 +14,7 @@ const userSchema = new mongoose.Schema({
     unique: true,
     lowercase: true,
     trim: true,
+    index: true,
   },
   username: {
     type: String,
@@ -50,18 +51,27 @@ const userSchema = new mongoose.Schema({
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
 });
 
-// Virtual for password
-userSchema.virtual('password').set(function(password) {
-  this.password_hash = bcrypt.hashSync(password, 12);
+// Pre-save middleware to hash password
+userSchema.pre('save', async function(next) {
+  // Only hash the password if it has been modified (or is new)
+  if (!this.isModified('password_hash')) {
+    return next();
+  }
+  
+  // Check if password is already hashed (starts with $2a$ or $2b$)
+  if (this.password_hash && (this.password_hash.startsWith('$2a$') || this.password_hash.startsWith('$2b$'))) {
+    return next();
+  }
+  
+  // Hash the password
+  this.password_hash = await bcrypt.hash(this.password_hash, 12);
+  next();
 });
 
 // Method to compare password
 userSchema.methods.comparePassword = function(password) {
   return bcrypt.compareSync(password, this.password_hash);
 };
-
-// Ensure email index
-userSchema.index({ email: 1 });
 
 const User = mongoose.model('User', userSchema);
 

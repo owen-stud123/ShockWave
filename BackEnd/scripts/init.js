@@ -109,7 +109,7 @@ const init = async () => {
   console.log('\n🚀 Initializing ShockWave Digital Marketplace with MongoDB...\n');
   await connectDB();
   await clearDatabase();
-  await createTestAccounts();
+  // await createTestAccounts(); // COMMENTED OUT - No test accounts in production
   console.log('✅ Initialization complete!\n');
   await mongoose.disconnect();
   process.exit(0);
