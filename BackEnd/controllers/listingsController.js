@@ -152,14 +152,18 @@ export const toggleBookmark = async (req, res, next) => {
         
         const user = await User.findById(userId);
         
-        const isBookmarked = user.profile.saved_projects.includes(listingId);
+        if (!user.saved_listings) {
+            user.saved_listings = [];
+        }
+        
+        const isBookmarked = user.saved_listings.includes(listingId);
         
         if (isBookmarked) {
             // Remove from bookmarks
-            user.profile.saved_projects.pull(listingId);
+            user.saved_listings.pull(listingId);
         } else {
             // Add to bookmarks
-            user.profile.saved_projects.push(listingId);
+            user.saved_listings.push(listingId);
         }
         
         await user.save();
@@ -180,7 +184,7 @@ export const toggleBookmark = async (req, res, next) => {
 export const getBookmarkedListings = async (req, res, next) => {
     try {
         const user = await User.findById(req.user.id).populate({
-            path: 'profile.saved_projects',
+            path: 'saved_listings',
             model: 'Listing',
             populate: {
                 path: 'owner',
@@ -193,9 +197,10 @@ export const getBookmarkedListings = async (req, res, next) => {
             return res.status(404).json({ error: 'User not found' });
         }
         
-        const formattedListings = user.profile.saved_projects.map(listing => ({
+        const formattedListings = (user.saved_listings || []).map(listing => ({
             ...listing.toObject(),
             id: listing._id,
+            owner_name: listing.owner?.name || 'Unknown'
         }));
 
         res.json(formattedListings);

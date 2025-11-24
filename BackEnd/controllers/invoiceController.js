@@ -23,7 +23,7 @@ export const createInvoice = async (req, res, next) => {
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
     }
-    if (order.seller.toString() !== designerId) {
+    if (order.seller._id.toString() !== designerId) {
       return res.status(403).json({ error: 'You are not the designer for this order' });
     }
     if (order.status !== 'completed') {

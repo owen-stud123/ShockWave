@@ -1,4 +1,5 @@
 import { validationResult } from 'express-validator';
+import mongoose from 'mongoose';
 import Message from '../models/messageModel.js';
 import User from '../models/userModel.js';
 
@@ -62,7 +63,7 @@ export const sendMessage = async (req, res, next) => {
 // @access  Private
 export const getUserThreads = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = new mongoose.Types.ObjectId(req.user.id);
 
     const threads = await Message.aggregate([
       {
@@ -113,12 +114,10 @@ export const getUserThreads = async (req, res, next) => {
           last_message: '$lastMessage',
           last_message_date: '$lastMessageDate',
           unread_count: '$unreadCount',
-          participant: {
-            id: '$participantInfo._id',
-            name: '$participantInfo.name',
-            avatar_url: '$participantInfo.profile.avatar_url',
-            role: '$participantInfo.role',
-          },
+          participant_id: '$participantInfo._id',
+          participant_name: '$participantInfo.name',
+          participant_avatar: '$participantInfo.profile.avatar_url',
+          participant_role: '$participantInfo.role',
           _id: 0,
         },
       },
@@ -137,7 +136,7 @@ export const getUserThreads = async (req, res, next) => {
 export const getMessagesInThread = async (req, res, next) => {
   try {
     const { threadId } = req.params;
-    const userId = req.user.id;
+    const userId = new mongoose.Types.ObjectId(req.user.id);
 
     const messages = await Message.find({ thread_id: threadId })
       .populate('sender', 'name role profile.avatar_url')
@@ -147,7 +146,7 @@ export const getMessagesInThread = async (req, res, next) => {
 
     // Security: ensure user is part of this thread
     const isParticipant = messages.some(
-      (msg) => msg.sender._id.toString() === userId || msg.recipient._id.toString() === userId
+      (msg) => msg.sender._id.toString() === userId.toString() || msg.recipient._id.toString() === userId.toString()
     );
 
     if (!isParticipant) {

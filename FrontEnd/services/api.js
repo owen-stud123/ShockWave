@@ -110,7 +110,7 @@ export const orderAPI = {
 
 export const messageAPI = {
   getThreads: () => api.get('/messages/threads'),
-  getMessages: (participantId) => api.get(`/messages/threads/${participantId}`),
+  getMessages: (threadId) => api.get(`/messages/${threadId}`),
 };
 
 export const reviewAPI = {
@@ -135,7 +135,9 @@ export const adminAPI = {
 
 export const invoiceAPI = {
     getInvoices: () => api.get('/invoices'),
+    getInvoice: (id) => api.get(`/invoices/${id}`),
     createInvoice: (data) => api.post('/invoices', data),
+    markAsPaid: (id) => api.patch(`/invoices/${id}/pay`),
 };
 
 export default api;

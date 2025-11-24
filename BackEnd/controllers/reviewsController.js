@@ -60,6 +60,8 @@ export const getReviewsForUser = async (req, res, next) => {
 
     const formattedReviews = reviews.map(r => ({
       id: r._id,
+      order_id: r.order.toString(),
+      reviewer_id: r.reviewer._id.toString(),
       rating: r.rating,
       comment: r.comment,
       created_at: r.createdAt,

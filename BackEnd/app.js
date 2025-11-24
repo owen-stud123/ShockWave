@@ -51,7 +51,8 @@ const PORT = process.env.PORT || 5000;
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(cors(corsOptions));
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
+// General rate limiter - increased to 500 requests per 15 minutes for development
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 500, message: 'Too many requests, please try again later.' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -73,23 +74,55 @@ app.get('/api/health', (req, res) => res.json({ status: 'OK' }));
 io.on('connection', (socket) => {
   console.log('✅ User connected:', socket.id);
 
+  // Join user to their personal room for receiving messages
   socket.on('join_room', (userId) => {
     socket.join(`user_${userId}`);
-    console.log(`User ${userId} joined their room`);
+    console.log(`✅ User ${userId} joined their room`);
   });
 
+  // Handle sending messages
   socket.on('send_message', async (messageData) => {
     try {
-      const message = new Message(messageData);
-      await message.save();
+      console.log('📨 Received message:', messageData);
+      
+      // Create and save message to MongoDB (match the Message model schema!)
+      const newMessage = new Message({
+        sender: messageData.sender_id,      // Model uses 'sender' not 'sender_id'
+        recipient: messageData.recipient_id, // Model uses 'recipient' not 'recipient_id'
+        body: messageData.content,           // Model uses 'body' not 'content'
+        thread_id: messageData.thread_id || `${messageData.sender_id}_${messageData.recipient_id}`,
+      });
+      
+      const savedMessage = await newMessage.save();
+      console.log('💾 Message saved to DB:', savedMessage._id);
+      
+      // Convert to plain object with proper field names for frontend
+      const messageToSend = {
+        _id: savedMessage._id,
+        id: savedMessage._id.toString(),
+        sender_id: savedMessage.sender,
+        recipient_id: savedMessage.recipient,
+        content: savedMessage.body,
+        thread_id: savedMessage.thread_id,
+        created_at: savedMessage.created_at,
+        is_read: savedMessage.is_read
+      };
       
       // Emit to recipient's room
-      io.to(`user_${messageData.recipient_id}`).emit('receive_message', message);
-      // Also emit back to sender
-      io.to(`user_${messageData.sender_id}`).emit('receive_message', message);
+      io.to(`user_${messageData.recipient_id}`).emit('receive_message', messageToSend);
+      console.log(`📤 Sent to recipient: user_${messageData.recipient_id}`);
+      
+      // Also emit back to sender for confirmation
+      io.to(`user_${messageData.sender_id}`).emit('receive_message', messageToSend);
+      console.log(`📤 Sent to sender: user_${messageData.sender_id}`);
+      
     } catch (error) {
-      console.error('Error sending message:', error);
-      socket.emit('message_error', { error: 'Failed to send message' });
+      console.error('❌ Error sending message:', error);
+      console.error('Error details:', error.stack);
+      socket.emit('message_error', { 
+        error: 'Failed to send message',
+        details: error.message 
+      });
     }
   });
 

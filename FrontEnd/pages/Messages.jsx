@@ -44,10 +44,29 @@ const Messages = () => {
       socket.emit('join_room', user.id);
 
       const handleReceiveMessage = (message) => {
-        // If the message belongs to the currently active chat, add it to the view
-        if (activeThread && message.thread_id === activeThread.thread_id) {
-          setMessages((prev) => [...prev, message]);
+        // If the message belongs to the currently active chat
+        if (activeThread && (message.thread_id === activeThread.thread_id || 
+            message.sender_id === activeThread.participant_id || 
+            message.recipient_id === activeThread.participant_id)) {
+          
+          setMessages((prev) => {
+            // Remove optimistic message if it exists (sent by this user)
+            const withoutOptimistic = prev.filter(msg => !msg.isOptimistic);
+            
+            // Check if this message already exists (avoid duplicates)
+            const messageExists = withoutOptimistic.some(msg => 
+              msg._id === message._id || msg.id === message._id
+            );
+            
+            if (messageExists) {
+              return prev;
+            }
+            
+            // Add the real message from server
+            return [...withoutOptimistic, message];
+          });
         }
+        
         // Always refresh the thread list to show the new "last message" and reorder
         fetchThreads();
       };
@@ -103,7 +122,7 @@ const Messages = () => {
       return;
     }
     try {
-      const res = await messageAPI.getMessages(thread.participant_id);
+      const res = await messageAPI.getMessages(thread.thread_id);
       setMessages(res.data);
     } catch (error) {
       console.error("Failed to fetch messages:", error);
@@ -114,13 +133,64 @@ const Messages = () => {
     e.preventDefault();
     if (newMessage.trim() === '' || !activeThread) return;
     
-    // Emit the event to the server. The server is the source of truth.
+    const messageContent = newMessage.trim();
+    const threadId = activeThread.thread_id || `${user.id}_${activeThread.participant_id}`;
+    
+    // Create optimistic message for immediate UI update
+    const optimisticMessage = {
+      _id: `temp_${Date.now()}`, // Temporary ID
+      sender_id: user.id,
+      recipient_id: activeThread.participant_id,
+      content: messageContent,
+      thread_id: threadId,
+      created_at: new Date().toISOString(),
+      isOptimistic: true // Flag to identify optimistic messages
+    };
+    
+    // Optimistically add message to UI immediately
+    setMessages(prev => [...prev, optimisticMessage]);
+    
+    // Update the thread list to show this as the last message
+    setThreads(prevThreads => {
+      const updatedThreads = prevThreads.map(thread => {
+        if (thread.thread_id === threadId || thread.participant_id === activeThread.participant_id) {
+          return {
+            ...thread,
+            last_message: messageContent,
+            thread_id: threadId,
+            isPlaceholder: false
+          };
+        }
+        return thread;
+      });
+      
+      // If no existing thread found (new conversation), add it
+      const threadExists = updatedThreads.some(t => 
+        t.thread_id === threadId || t.participant_id === activeThread.participant_id
+      );
+      
+      if (!threadExists) {
+        updatedThreads.unshift({
+          thread_id: threadId,
+          participant_id: activeThread.participant_id,
+          participant_name: activeThread.participant_name,
+          last_message: messageContent
+        });
+      }
+      
+      return updatedThreads;
+    });
+    
+    // Clear input immediately for better UX
+    setNewMessage('');
+    
+    // Send to server (server will send back confirmation)
     socket.emit('send_message', {
       sender_id: user.id,
       recipient_id: activeThread.participant_id,
-      body: newMessage,
+      content: messageContent,
+      thread_id: threadId
     });
-    setNewMessage('');
   };
 
   if (loading) {
@@ -140,9 +210,20 @@ const Messages = () => {
           ) : (
             <ul>
               {threads.map(thread => (
-                <li key={thread.thread_id} onClick={() => handleThreadClick(thread)} className={`p-4 cursor-pointer hover:bg-lightgray-light border-b border-lightgray ${activeThread?.thread_id === thread.thread_id ? 'bg-mint/10' : ''}`}>
-                  <p className="font-semibold text-charcoal">{thread.participant_name}</p>
-                  <p className="text-sm text-charcoal-light truncate">{thread.last_message}</p>
+                <li 
+                  key={thread.thread_id} 
+                  onClick={() => handleThreadClick(thread)} 
+                  className={`p-4 cursor-pointer hover:bg-lightgray-light border-b border-lightgray transition-colors ${activeThread?.thread_id === thread.thread_id ? 'bg-mint/10 border-l-4 border-l-mint' : ''}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-mint flex items-center justify-center text-white font-bold flex-shrink-0">
+                      {thread.participant_name?.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-charcoal truncate">{thread.participant_name}</p>
+                      <p className="text-xs text-charcoal-light">{thread.participant_role || 'User'}</p>
+                    </div>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -154,30 +235,83 @@ const Messages = () => {
       <div className="w-2/3 flex flex-col bg-lightgray-light">
         {activeThread ? (
           <>
-            <div className="p-4 border-b-2 border-lightgray bg-white flex items-center">
-              <h2 className="text-xl font-bold text-charcoal">{activeThread.participant_name}</h2>
+            {/* Chat Header */}
+            <div className="p-4 border-b-2 border-lightgray bg-white flex items-center gap-3 shadow-sm">
+              <div className="w-10 h-10 rounded-full bg-mint flex items-center justify-center text-white font-bold text-lg">
+                {activeThread.participant_name?.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-charcoal">{activeThread.participant_name}</h2>
+                <p className="text-xs text-charcoal-light">{activeThread.participant_role || 'User'}</p>
+              </div>
             </div>
-            <div className="flex-1 p-4 overflow-y-auto">
-                {messages.map((msg) => (
-                  <div key={msg.id} className={`flex ${msg.sender_id === user.id ? 'justify-end' : 'justify-start'} mb-4`}>
-                    <div className={`max-w-md p-3 rounded-lg shadow-sm ${msg.sender_id === user.id ? 'bg-mint text-white' : 'bg-white text-charcoal'}`}>
-                      <p>{msg.body}</p>
-                      <p className={`text-xs mt-1 text-right ${msg.sender_id === user.id ? 'text-white/70' : 'text-charcoal-light'}`}>{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+
+            {/* Messages Area */}
+            <div className="flex-1 p-4 overflow-y-auto space-y-4">
+              {messages.map((msg, index) => {
+                const senderId = msg.sender_id || msg.sender?.id;
+                const isOwnMessage = senderId === user.id;
+                const prevSenderId = index > 0 ? (messages[index - 1].sender_id || messages[index - 1].sender?.id) : null;
+                const nextSenderId = index < messages.length - 1 ? (messages[index + 1].sender_id || messages[index + 1].sender?.id) : null;
+                const showAvatar = index === 0 || prevSenderId !== senderId;
+                const showTimestamp = index === messages.length - 1 || nextSenderId !== senderId;
+                
+                return (
+                  <div key={msg.id || msg._id} className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} items-end gap-2`}>
+                    {/* Left Avatar (for other user) */}
+                    {!isOwnMessage && (
+                      <div className={`w-8 h-8 rounded-full bg-mint flex items-center justify-center text-white font-semibold text-sm flex-shrink-0 ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
+                        {activeThread.participant_name?.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+
+                    {/* Message Bubble */}
+                    <div className={`flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'} max-w-md`}>
+                      <div className={`px-4 py-2 rounded-2xl shadow-sm ${isOwnMessage ? 'bg-mint text-white rounded-br-sm' : 'bg-white text-charcoal rounded-bl-sm'}`}>
+                        <p className="text-sm leading-relaxed">{msg.body || msg.content}</p>
+                      </div>
+                      {showTimestamp && (
+                        <span className="text-xs text-charcoal-light mt-1 px-2">
+                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
                     </div>
+
+                    {/* Right Avatar (for own messages) */}
+                    {isOwnMessage && (
+                      <div className={`w-8 h-8 rounded-full bg-charcoal flex items-center justify-center text-white font-semibold text-sm flex-shrink-0 ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
+                        {user.name?.charAt(0).toUpperCase()}
+                      </div>
+                    )}
                   </div>
-                ))}
+                );
+              })}
               <div ref={messagesEndRef} />
             </div>
+
+            {/* Message Input - Fixed at Bottom */}
             <div className="p-4 bg-white border-t-2 border-lightgray">
-              <form onSubmit={handleSendMessage} className="flex">
-                <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type a message..." className="flex-1 p-2 border-2 border-lightgray-dark rounded-l-lg focus:ring-mint focus:border-mint"/>
-                <button type="submit" className="px-4 py-2 bg-mint text-white rounded-r-lg hover:bg-mint-dark font-semibold">Send</button>
+              <form onSubmit={handleSendMessage} className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={newMessage} 
+                  onChange={(e) => setNewMessage(e.target.value)} 
+                  placeholder={`Message ${activeThread.participant_name}...`}
+                  className="flex-1 px-4 py-3 border-2 border-lightgray-dark rounded-full focus:outline-none focus:ring-2 focus:ring-mint focus:border-transparent"
+                />
+                <button 
+                  type="submit" 
+                  disabled={!newMessage.trim()}
+                  className="px-6 py-3 bg-mint text-white rounded-full hover:bg-mint-dark font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Send
+                </button>
               </form>
             </div>
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-charcoal-light text-center">
-            <p>Select a conversation to start chatting,<br />or contact a designer from their profile page.</p>
+            <p className="text-lg">Select a conversation to start chatting,<br />or contact a designer from their profile page.</p>
           </div>
         )}
       </div>

@@ -53,7 +53,7 @@ const Invoices = () => {
                                 <tr key={invoice.id} className="border-b hover:bg-gray-50">
                                     <td className="p-3 text-sm text-gray-500 font-mono">#{invoice.id.slice(-6)}</td>
                                     <td className="p-3 font-medium text-charcoal">{invoice.listing_title}</td>
-                                    <td className="p-3">{user.role === 'designer' ? invoice.business.name : invoice.designer.name}</td>
+                                    <td className="p-3">{user.role === 'designer' ? invoice.business_name : invoice.designer_name}</td>
                                     <td className="p-3 font-semibold text-mint">${invoice.amount.toFixed(2)}</td>
                                     <td className="p-3">
                                         <span className={`px-2 py-1 text-xs rounded-full capitalize ${invoice.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>

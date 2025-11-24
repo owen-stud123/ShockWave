@@ -154,135 +154,6 @@ vite.config.js
 <files>
 This section contains the contents of the repository's files.
 
-<file path="FrontEnd/index.html">
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌊</text></svg>" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="ShockWave - Connect graphic designers with businesses. A marketplace for creative talent." />
-    <title>ShockWave - Digital Marketplace for Designers</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/main.jsx"></script>
-  </body>
-</html>
-</file>
-
-<file path="FrontEnd/package.json">
-{
-  "name": "shockwave-frontend",
-  "private": true,
-  "version": "1.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "axios": "^1.7.9",
-    "chart.js": "^4.4.3",
-    "framer-motion": "^11.15.0",
-    "lucide-react": "^0.554.0",
-    "react": "^19.1.1",
-    "react-chartjs-2": "^5.2.0",
-    "react-dom": "^19.1.1",
-    "react-router-dom": "^6.28.0",
-    "socket.io-client": "^4.7.5"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-react": "^5.0.4",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.14",
-    "vite": "^7.1.7"
-  }
-}
-</file>
-
-<file path="FrontEnd/postcss.config.js">
-export default {
-  plugins: {
-    tailwindcss: {},
-    autoprefixer: {},
-  },
-}
-</file>
-
-<file path="FrontEnd/tailwind.config.js">
-/** @type {import('tailwindcss').Config} */
-export default {
-  content: [
-    "./index.html",
-    "./**/*.{js,ts,jsx,tsx}",
-  ],
-  theme: {
-    extend: {
-      colors: {
-        charcoal: {
-          DEFAULT: '#2D3436',
-          light: '#3d4547',
-          dark: '#1d2426',
-        },
-        lightgray: {
-          DEFAULT: '#DFE6E9',
-          light: '#F5F7F8',
-          dark: '#B2BEC3',
-        },
-        mint: {
-          DEFAULT: '#00CEC9',
-          light: '#55EFC4',
-          dark: '#00B894',
-        },
-        primary: {
-          50: '#e6fffe',
-          100: '#b3fffc',
-          200: '#80fffa',
-          300: '#4dffef',
-          400: '#1afff7',
-          500: '#00CEC9',
-          600: '#00b5b0',
-          700: '#009c98',
-          800: '#008380',
-          900: '#006a68',
-        }
-      },
-      animation: {
-        'fade-in': 'fadeIn 0.5s ease-in-out',
-        'slide-up': 'slideUp 0.3s ease-out',
-      },
-      keyframes: {
-        fadeIn: {
-          '0%': { opacity: '0' },
-          '100%': { opacity: '1' },
-        },
-        slideUp: {
-          '0%': { transform: 'translateY(10px)', opacity: '0' },
-          '100%': { transform: 'translateY(0)', opacity: '1' },
-        }
-      }
-    },
-  },
-  plugins: [],
-}
-</file>
-
-<file path="FrontEnd/vite.config.js">
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    port: 5174
-  }
-})
-</file>
-
 <file path="BackEnd/check-emails.js">
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
@@ -1026,65 +897,6 @@ router.post('/webhook', express.raw({ type: 'application/json' }), (req, res) =>
 export default router;
 </file>
 
-<file path="BackEnd/services/emailService.js">
-import nodemailer from 'nodemailer';
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT,
-  secure: false, // true for 465, false for other ports
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
-
-const sendEmail = async (to, subject, html) => {
-  try {
-    await transporter.sendMail({
-      from: `"ShockWave Platform" <${process.env.SMTP_USER}>`,
-      to,
-      subject,
-      html,
-    });
-    console.log(`✅ Email sent to ${to} via ${process.env.SMTP_HOST}`);
-  } catch (error) {
-    console.error(`❌ Error sending email to ${to}:`, error.message);
-    throw error;
-  }
-};
-
-
-export const sendVerificationEmail = async (userEmail, token) => {
-  const verificationUrl = `${process.env.CLIENT_URL}/verify-email/${token}`;
-  const subject = 'Verify Your Email Address for ShockWave';
-  const html = `
-    <h1>Welcome to ShockWave!</h1>
-    <p>Please click the link below to verify your email address:</p>
-    <a href="${verificationUrl}" target="_blank">Verify My Email</a>
-    <p>If you did not sign up for an account, you can safely ignore this email.</p>
-  `;
-  await sendEmail(userEmail, subject, html);
-};
-
-
-export const sendPasswordResetEmail = async (userEmail, token) => {
-  const resetUrl = `${process.env.CLIENT_URL}/reset-password/${token}`;
-  const subject = 'Password Reset Request for ShockWave';
-  const html = `
-    <h1>Password Reset Request</h1>
-    <p>You requested a password reset for your ShockWave account. Please click the link below to set a new password:</p>
-    <a href="${resetUrl}" target="_blank">Reset My Password</a>
-    <p>This link will expire in one hour.</p>
-    <p>If you did not request a password reset, please ignore this email.</p>
-  `;
-  await sendEmail(userEmail, subject, html);
-};
-</file>
-
 <file path="BackEnd/services/placeholder.txt">
 // placeholder
 </file>
@@ -1763,6 +1575,23 @@ const PrivateRoute = ({ children, roles }) => {
 export default PrivateRoute;
 </file>
 
+<file path="FrontEnd/index.html">
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌊</text></svg>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="ShockWave - Connect graphic designers with businesses. A marketplace for creative talent." />
+    <title>ShockWave - Digital Marketplace for Designers</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/main.jsx"></script>
+  </body>
+</html>
+</file>
+
 <file path="FrontEnd/main.jsx">
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -1775,6 +1604,39 @@ createRoot(document.getElementById('root')).render(
     <App />
   </StrictMode>,
 )
+</file>
+
+<file path="FrontEnd/package.json">
+{
+  "name": "shockwave-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "chart.js": "^4.4.3",
+    "framer-motion": "^11.15.0",
+    "lucide-react": "^0.554.0",
+    "react": "^19.1.1",
+    "react-chartjs-2": "^5.2.0",
+    "react-dom": "^19.1.1",
+    "react-router-dom": "^6.28.0",
+    "socket.io-client": "^4.7.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.0.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.14",
+    "vite": "^7.1.7"
+  }
+}
 </file>
 
 <file path="FrontEnd/pages/AdminMessagesView.jsx">
@@ -2604,321 +2466,6 @@ const OrderDetail = () => {
 export default OrderDetail;
 </file>
 
-<file path="FrontEnd/pages/ResetPassword.jsx">
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { authAPI } from '../services/api';
-import { motion } from 'framer-motion';
-import { Eye, EyeOff, Check, X, Lock, ShieldCheck, ArrowLeft } from 'lucide-react';
-
-const ResetPassword = () => {
-  const { token } = useParams();
-  const navigate = useNavigate();
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [passwordStrength, setPasswordStrength] = useState({
-    score: 0,
-    label: '',
-    color: '',
-  });
-  const [validations, setValidations] = useState({
-    minLength: false,
-    hasUpperCase: false,
-    hasLowerCase: false,
-    hasNumber: false,
-    hasSpecialChar: false,
-  });
-
-  // Password strength checker
-  useEffect(() => {
-    if (!password) {
-      setPasswordStrength({ score: 0, label: '', color: '' });
-      return;
-    }
-
-    const checks = {
-      minLength: password.length >= 8,
-      hasUpperCase: /[A-Z]/.test(password),
-      hasLowerCase: /[a-z]/.test(password),
-      hasNumber: /[0-9]/.test(password),
-      hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(password),
-    };
-
-    setValidations(checks);
-
-    const score = Object.values(checks).filter(Boolean).length;
-    
-    let label = '';
-    let color = '';
-    
-    if (score <= 2) {
-      label = 'Weak';
-      color = 'bg-red-500';
-    } else if (score === 3) {
-      label = 'Fair';
-      color = 'bg-orange-500';
-    } else if (score === 4) {
-      label = 'Good';
-      color = 'bg-yellow-500';
-    } else {
-      label = 'Strong';
-      color = 'bg-green-500';
-    }
-
-    setPasswordStrength({ score, label, color });
-  }, [password]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-    setIsLoading(true);
-    setError('');
-    setMessage('');
-    try {
-      const res = await authAPI.resetPassword(token, password);
-      setMessage(res.data.message);
-      setTimeout(() => navigate('/login'), 3000); // Redirect to login after 3 seconds
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to reset password.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-mint/5 via-white to-mint/10 py-12 px-4">
-      <motion.div
-        className="max-w-md w-full"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <div className="bg-white rounded-2xl shadow-2xl p-8 border border-gray-100">
-          {/* Header with Icon */}
-          <div className="text-center mb-8">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-              className="inline-flex items-center justify-center w-16 h-16 bg-mint/10 rounded-full mb-4"
-            >
-              <ShieldCheck className="w-8 h-8 text-mint" />
-            </motion.div>
-            <h2 className="text-3xl font-bold text-charcoal mb-2">Reset Your Password</h2>
-            <p className="text-sm text-gray-600">
-              Create a strong, secure password for your ShockWave account
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Error Alert */}
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg text-sm flex items-start gap-3"
-              >
-                <X className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                <span>{error}</span>
-              </motion.div>
-            )}
-
-            {/* Success Alert */}
-            {message && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-lg text-sm flex items-start gap-3"
-              >
-                <Check className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium">{message}</p>
-                  <p className="text-xs mt-1">Redirecting to login page...</p>
-                </div>
-              </motion.div>
-            )}
-
-            {/* New Password Field */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-semibold text-charcoal mb-2">
-                New Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  className="w-full pl-10 pr-12 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mint focus:border-transparent transition-all"
-                  placeholder="Enter new password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
-
-              {/* Password Strength Indicator */}
-              {password && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="mt-3 space-y-2"
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${(passwordStrength.score / 5) * 100}%` }}
-                        className={`h-full ${passwordStrength.color} transition-all duration-300`}
-                      />
-                    </div>
-                    <span className={`text-xs font-medium ${passwordStrength.color.replace('bg-', 'text-')}`}>
-                      {passwordStrength.label}
-                    </span>
-                  </div>
-
-                  {/* Password Requirements */}
-                  <div className="bg-gray-50 rounded-lg p-3 space-y-1.5">
-                    <p className="text-xs font-semibold text-gray-700 mb-2">Password must contain:</p>
-                    {[
-                      { key: 'minLength', label: 'At least 8 characters' },
-                      { key: 'hasUpperCase', label: 'One uppercase letter' },
-                      { key: 'hasLowerCase', label: 'One lowercase letter' },
-                      { key: 'hasNumber', label: 'One number' },
-                      { key: 'hasSpecialChar', label: 'One special character (!@#$%^&*)' },
-                    ].map(({ key, label }) => (
-                      <div key={key} className="flex items-center gap-2 text-xs">
-                        {validations[key] ? (
-                          <Check className="w-4 h-4 text-green-600" />
-                        ) : (
-                          <X className="w-4 h-4 text-gray-400" />
-                        )}
-                        <span className={validations[key] ? 'text-green-700' : 'text-gray-600'}>
-                          {label}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </div>
-
-            {/* Confirm Password Field */}
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-semibold text-charcoal mb-2">
-                Confirm New Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  required
-                  className={`w-full pl-10 pr-12 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-mint transition-all ${
-                    confirmPassword && password !== confirmPassword
-                      ? 'border-red-300 focus:border-red-300'
-                      : 'border-gray-200 focus:border-transparent'
-                  }`}
-                  placeholder="Confirm new password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
-              {confirmPassword && password !== confirmPassword && (
-                <motion.p
-                  initial={{ opacity: 0, y: -5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-xs text-red-600 mt-1.5 flex items-center gap-1"
-                >
-                  <X className="w-3 h-3" />
-                  Passwords do not match
-                </motion.p>
-              )}
-              {confirmPassword && password === confirmPassword && (
-                <motion.p
-                  initial={{ opacity: 0, y: -5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-xs text-green-600 mt-1.5 flex items-center gap-1"
-                >
-                  <Check className="w-3 h-3" />
-                  Passwords match
-                </motion.p>
-              )}
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isLoading || message || password !== confirmPassword || passwordStrength.score < 3}
-              className="w-full bg-gradient-to-r from-mint to-mint-dark text-white py-3 rounded-lg font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none flex items-center justify-center gap-2"
-            >
-              {isLoading ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Resetting Password...
-                </>
-              ) : (
-                <>
-                  <ShieldCheck className="w-5 h-5" />
-                  Reset Password
-                </>
-              )}
-            </button>
-
-            {/* Back to Login */}
-            <div className="text-center pt-2">
-              <Link
-                to="/login"
-                className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-mint transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to Login
-              </Link>
-            </div>
-          </form>
-        </div>
-
-        {/* Security Note */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="mt-6 text-center"
-        >
-          <p className="text-xs text-gray-500 flex items-center justify-center gap-2">
-            <Lock className="w-3 h-3" />
-            Your password is encrypted and secure
-          </p>
-        </motion.div>
-      </motion.div>
-    </div>
-  );
-};
-
-export default ResetPassword;
-</file>
-
 <file path="FrontEnd/pages/SavedProjects.jsx">
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -2989,6 +2536,15 @@ const SavedProjects = () => {
 };
 
 export default SavedProjects;
+</file>
+
+<file path="FrontEnd/postcss.config.js">
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
 </file>
 
 <file path="FrontEnd/styles/App.css">
@@ -3194,6 +2750,76 @@ button:active {
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
+</file>
+
+<file path="FrontEnd/tailwind.config.js">
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        charcoal: {
+          DEFAULT: '#2D3436',
+          light: '#3d4547',
+          dark: '#1d2426',
+        },
+        lightgray: {
+          DEFAULT: '#DFE6E9',
+          light: '#F5F7F8',
+          dark: '#B2BEC3',
+        },
+        mint: {
+          DEFAULT: '#00CEC9',
+          light: '#55EFC4',
+          dark: '#00B894',
+        },
+        primary: {
+          50: '#e6fffe',
+          100: '#b3fffc',
+          200: '#80fffa',
+          300: '#4dffef',
+          400: '#1afff7',
+          500: '#00CEC9',
+          600: '#00b5b0',
+          700: '#009c98',
+          800: '#008380',
+          900: '#006a68',
+        }
+      },
+      animation: {
+        'fade-in': 'fadeIn 0.5s ease-in-out',
+        'slide-up': 'slideUp 0.3s ease-out',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        slideUp: {
+          '0%': { transform: 'translateY(10px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        }
+      }
+    },
+  },
+  plugins: [],
+}
+</file>
+
+<file path="FrontEnd/vite.config.js">
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 5174
+  }
+})
 </file>
 
 <file path="PLATFORM_FLOW_DIAGRAM.md">
@@ -4443,75 +4069,6 @@ const Proposal = mongoose.model('Proposal', proposalSchema);
 export default Proposal;
 </file>
 
-<file path="BackEnd/models/userModel.js">
-// BackEnd/models/userModel.js
-import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
-
-const userSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  email: {
-    type: String,
-    required: true,
-    unique: true,
-    lowercase: true,
-    trim: true,
-    index: true,
-  },
-  username: {
-    type: String,
-    unique: true,
-    sparse: true, // allows null but unique when exists
-  },
-  password_hash: {
-    type: String,
-    required: true,
-  },
-  role: {
-    type: String,
-    enum: ['designer', 'business', 'admin'],
-    default: 'designer',
-  },
-  is_active: {
-    type: Boolean,
-    default: true,
-  },
-  profile: {
-    avatar_url: { type: String, default: '' },
-    bio: { type: String, default: '' },
-    skills: [String],
-    hourly_rate: { type: Number },
-    company_name: { type: String },
-    website: { type: String },
-    location: { type: String },
-  },
-  saved_listings: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Listing',
-  }],
-}, {
-  timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
-});
-
-// Virtual for password
-userSchema.virtual('password').set(function(password) {
-  this.password_hash = bcrypt.hashSync(password, 12);
-});
-
-// Method to compare password
-userSchema.methods.comparePassword = function(password) {
-  return bcrypt.compareSync(password, this.password_hash);
-};
-
-const User = mongoose.model('User', userSchema);
-
-export default User;
-</file>
-
 <file path="BackEnd/routes/adminRoutes.js">
 import express from 'express';
 import {
@@ -4640,125 +4197,63 @@ router.delete('/portfolio/:id', authenticateToken, requireRole(['designer']), de
 export default router;
 </file>
 
-<file path="BackEnd/scripts/init.js">
-import mongoose from 'mongoose';
+<file path="BackEnd/services/emailService.js">
+import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
-import connectDB from '../config/database.js';
-
-// Load Models
-import User from '../models/userModel.js';
-import Listing from '../models/listingModel.js';
-import Proposal from '../models/proposalModel.js';
-import Order from '../models/orderModel.js';
-import Message from '../models/messageModel.js';
-import Review from '../models/reviewModel.js';
-import PortfolioItem from '../models/portfolioItemModel.js';
-import Invoice from '../models/invoiceModel.js';
 
 dotenv.config();
 
-const clearDatabase = async () => {
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT,
+  secure: false, // true for 465, false for other ports
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+const sendEmail = async (to, subject, html) => {
   try {
-    console.log('🗑️  Clearing existing data...');
-    // Order matters for logs, but not for Mongo's parallel deletion
-    await Invoice.deleteMany({});
-    await Review.deleteMany({});
-    await Message.deleteMany({});
-    await Order.deleteMany({});
-    await Proposal.deleteMany({});
-    await PortfolioItem.deleteMany({});
-    await Listing.deleteMany({});
-    await User.deleteMany({});
-    console.log('✅ Database cleared');
+    await transporter.sendMail({
+      from: `"ShockWave Platform" <${process.env.SMTP_USER}>`,
+      to,
+      subject,
+      html,
+    });
+    console.log(`✅ Email sent to ${to} via ${process.env.SMTP_HOST}`);
   } catch (error) {
-    console.error('❌ Error clearing database:', error);
-    process.exit(1);
+    console.error(`❌ Error sending email to ${to}:`, error.message);
+    throw error;
   }
 };
 
-const createTestAccounts = async () => {
-  try {
-    console.log('👥 Creating test accounts...\n');
 
-    const accounts = [
-      {
-        email: 'designer@creative.com',
-        password_hash: 'design2024',
-        name: 'Creative Designer',
-        role: 'designer',
-        is_email_verified: true,
-        profile: {
-          bio: 'Professional designer specializing in branding and visual identity. Over 10 years of experience.',
-          skills: ['Logo Design', 'Branding', 'UI/UX', 'Illustration'],
-          location: 'New York, USA',
-          hourly_rate: 75,
-        },
-      },
-      {
-        email: 'business@startup.com',
-        password_hash: 'startup2024',
-        name: 'Tech Startup Co',
-        role: 'business',
-        is_email_verified: true,
-        profile: {
-          bio: 'Growing tech company looking for talented designers to help us build the next big thing.',
-        },
-      },
-      {
-        email: 'admin@shockwave.com',
-        password_hash: 'admin2024',
-        name: 'System Administrator',
-        role: 'admin',
-        is_email_verified: true,
-        profile: {
-          bio: 'Platform administrator.',
-          skills: ['Platform Management'],
-        },
-      },
-    ];
-
-    for (const account of accounts) {
-      // The password will be hashed by the pre-save middleware in the User model
-      const user = new User(account);
-      await user.save();
-      
-      console.log(`✅ Created ${account.role.toUpperCase()} account:`);
-      console.log(`   Email: ${account.email}`);
-      console.log(`   Password: ${account.password_hash}`); // Note: this is the plain text before hashing
-      console.log(`   Name: ${account.name}\n`);
-    }
-
-    console.log('═══════════════════════════════════════════');
-    console.log('🎉 TEST ACCOUNTS READY FOR TESTING');
-    console.log('═══════════════════════════════════════════');
-    console.log('\n📋 DESIGNER ACCOUNT:');
-    console.log('   Email: designer@creative.com');
-    console.log('   Password: design2024');
-    console.log('\n💼 BUSINESS ACCOUNT:');
-    console.log('   Email: business@startup.com');
-    console.log('   Password: startup2024');
-    console.log('\n🔐 ADMIN ACCOUNT:');
-    console.log('   Email: admin@shockwave.com');
-    console.log('   Password: admin2024');
-    console.log('\n═══════════════════════════════════════════\n');
-
-  } catch (error) {
-    console.error('❌ Error creating test accounts:', error);
-    process.exit(1);
-  }
+export const sendVerificationEmail = async (userEmail, token) => {
+  const verificationUrl = `${process.env.CLIENT_URL}/verify-email/${token}`;
+  const subject = 'Verify Your Email Address for ShockWave';
+  const html = `
+    <h1>Welcome to ShockWave!</h1>
+    <p>Please click the link below to verify your email address:</p>
+    <a href="${verificationUrl}" target="_blank">Verify My Email</a>
+    <p>If you did not sign up for an account, you can safely ignore this email.</p>
+  `;
+  await sendEmail(userEmail, subject, html);
 };
 
-const init = async () => {
-  console.log('\n🚀 Initializing ShockWave Digital Marketplace with MongoDB...\n');
-  await connectDB();
-  await clearDatabase();
-  // await createTestAccounts(); // COMMENTED OUT - No test accounts in production
-  console.log('✅ Initialization complete!\n');
-  await mongoose.disconnect();
-  process.exit(0);
-};
 
-init();
+export const sendPasswordResetEmail = async (userEmail, token) => {
+  const resetUrl = `${process.env.CLIENT_URL}/reset-password/${token}`;
+  const subject = 'Password Reset Request for ShockWave';
+  const html = `
+    <h1>Password Reset Request</h1>
+    <p>You requested a password reset for your ShockWave account. Please click the link below to set a new password:</p>
+    <a href="${resetUrl}" target="_blank">Reset My Password</a>
+    <p>This link will expire in one hour.</p>
+    <p>If you did not request a password reset, please ignore this email.</p>
+  `;
+  await sendEmail(userEmail, subject, html);
+};
 </file>
 
 <file path="FrontEnd/components/Navbar.jsx">
@@ -5636,6 +5131,321 @@ const InputField = ({ label, name, type, value, onChange, placeholder }) => (
 export default Register;
 </file>
 
+<file path="FrontEnd/pages/ResetPassword.jsx">
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { authAPI } from '../services/api';
+import { motion } from 'framer-motion';
+import { Eye, EyeOff, Check, X, Lock, ShieldCheck, ArrowLeft } from 'lucide-react';
+
+const ResetPassword = () => {
+  const { token } = useParams();
+  const navigate = useNavigate();
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState({
+    score: 0,
+    label: '',
+    color: '',
+  });
+  const [validations, setValidations] = useState({
+    minLength: false,
+    hasUpperCase: false,
+    hasLowerCase: false,
+    hasNumber: false,
+    hasSpecialChar: false,
+  });
+
+  // Password strength checker
+  useEffect(() => {
+    if (!password) {
+      setPasswordStrength({ score: 0, label: '', color: '' });
+      return;
+    }
+
+    const checks = {
+      minLength: password.length >= 8,
+      hasUpperCase: /[A-Z]/.test(password),
+      hasLowerCase: /[a-z]/.test(password),
+      hasNumber: /[0-9]/.test(password),
+      hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+    };
+
+    setValidations(checks);
+
+    const score = Object.values(checks).filter(Boolean).length;
+    
+    let label = '';
+    let color = '';
+    
+    if (score <= 2) {
+      label = 'Weak';
+      color = 'bg-red-500';
+    } else if (score === 3) {
+      label = 'Fair';
+      color = 'bg-orange-500';
+    } else if (score === 4) {
+      label = 'Good';
+      color = 'bg-yellow-500';
+    } else {
+      label = 'Strong';
+      color = 'bg-green-500';
+    }
+
+    setPasswordStrength({ score, label, color });
+  }, [password]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setIsLoading(true);
+    setError('');
+    setMessage('');
+    try {
+      const res = await authAPI.resetPassword(token, password);
+      setMessage(res.data.message);
+      setTimeout(() => navigate('/login'), 3000); // Redirect to login after 3 seconds
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to reset password.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-mint/5 via-white to-mint/10 py-12 px-4">
+      <motion.div
+        className="max-w-md w-full"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="bg-white rounded-2xl shadow-2xl p-8 border border-gray-100">
+          {/* Header with Icon */}
+          <div className="text-center mb-8">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+              className="inline-flex items-center justify-center w-16 h-16 bg-mint/10 rounded-full mb-4"
+            >
+              <ShieldCheck className="w-8 h-8 text-mint" />
+            </motion.div>
+            <h2 className="text-3xl font-bold text-charcoal mb-2">Reset Your Password</h2>
+            <p className="text-sm text-gray-600">
+              Create a strong, secure password for your ShockWave account
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Error Alert */}
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg text-sm flex items-start gap-3"
+              >
+                <X className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </motion.div>
+            )}
+
+            {/* Success Alert */}
+            {message && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-lg text-sm flex items-start gap-3"
+              >
+                <Check className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium">{message}</p>
+                  <p className="text-xs mt-1">Redirecting to login page...</p>
+                </div>
+              </motion.div>
+            )}
+
+            {/* New Password Field */}
+            <div>
+              <label htmlFor="password" className="block text-sm font-semibold text-charcoal mb-2">
+                New Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  className="w-full pl-10 pr-12 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mint focus:border-transparent transition-all"
+                  placeholder="Enter new password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+
+              {/* Password Strength Indicator */}
+              {password && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="mt-3 space-y-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(passwordStrength.score / 5) * 100}%` }}
+                        className={`h-full ${passwordStrength.color} transition-all duration-300`}
+                      />
+                    </div>
+                    <span className={`text-xs font-medium ${passwordStrength.color.replace('bg-', 'text-')}`}>
+                      {passwordStrength.label}
+                    </span>
+                  </div>
+
+                  {/* Password Requirements */}
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-1.5">
+                    <p className="text-xs font-semibold text-gray-700 mb-2">Password must contain:</p>
+                    {[
+                      { key: 'minLength', label: 'At least 8 characters' },
+                      { key: 'hasUpperCase', label: 'One uppercase letter' },
+                      { key: 'hasLowerCase', label: 'One lowercase letter' },
+                      { key: 'hasNumber', label: 'One number' },
+                      { key: 'hasSpecialChar', label: 'One special character (!@#$%^&*)' },
+                    ].map(({ key, label }) => (
+                      <div key={key} className="flex items-center gap-2 text-xs">
+                        {validations[key] ? (
+                          <Check className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <X className="w-4 h-4 text-gray-400" />
+                        )}
+                        <span className={validations[key] ? 'text-green-700' : 'text-gray-600'}>
+                          {label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </div>
+
+            {/* Confirm Password Field */}
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-semibold text-charcoal mb-2">
+                Confirm New Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  required
+                  className={`w-full pl-10 pr-12 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-mint transition-all ${
+                    confirmPassword && password !== confirmPassword
+                      ? 'border-red-300 focus:border-red-300'
+                      : 'border-gray-200 focus:border-transparent'
+                  }`}
+                  placeholder="Confirm new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+              {confirmPassword && password !== confirmPassword && (
+                <motion.p
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-xs text-red-600 mt-1.5 flex items-center gap-1"
+                >
+                  <X className="w-3 h-3" />
+                  Passwords do not match
+                </motion.p>
+              )}
+              {confirmPassword && password === confirmPassword && (
+                <motion.p
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-xs text-green-600 mt-1.5 flex items-center gap-1"
+                >
+                  <Check className="w-3 h-3" />
+                  Passwords match
+                </motion.p>
+              )}
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={isLoading || message || password !== confirmPassword || passwordStrength.score < 3}
+              className="w-full bg-gradient-to-r from-mint to-mint-dark text-white py-3 rounded-lg font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none flex items-center justify-center gap-2"
+            >
+              {isLoading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Resetting Password...
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-5 h-5" />
+                  Reset Password
+                </>
+              )}
+            </button>
+
+            {/* Back to Login */}
+            <div className="text-center pt-2">
+              <Link
+                to="/login"
+                className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-mint transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Login
+              </Link>
+            </div>
+          </form>
+        </div>
+
+        {/* Security Note */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="mt-6 text-center"
+        >
+          <p className="text-xs text-gray-500 flex items-center justify-center gap-2">
+            <Lock className="w-3 h-3" />
+            Your password is encrypted and secure
+          </p>
+        </motion.div>
+      </motion.div>
+    </div>
+  );
+};
+
+export default ResetPassword;
+</file>
+
 <file path="index.html">
 <!doctype html>
 <html lang="en">
@@ -5736,259 +5546,6 @@ const connectDB = async () => {
 export default connectDB;
 </file>
 
-<file path="BackEnd/controllers/authController.js">
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { validationResult } from 'express-validator';
-import User from '../models/userModel.js';
-import { generateVerificationToken, generateResetToken } from '../utils/tokenUtils.js';
-import { sendVerificationEmail, sendPasswordResetEmail } from '../services/emailService.js';
-
-// Generate JWT tokens
-const generateTokens = (user) => {
-  const accessToken = jwt.sign(
-    { userId: user.id, role: user.role }, 
-    process.env.JWT_SECRET, 
-    { expiresIn: '15m' }
-  );
-  
-  const refreshToken = jwt.sign(
-    { userId: user.id }, 
-    process.env.JWT_REFRESH_SECRET, 
-    { expiresIn: '7d' }
-  );
-
-  return { accessToken, refreshToken };
-};
-
-// Set refresh token cookie
-const setRefreshTokenCookie = (res, refreshToken) => {
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-    });
-};
-
-// @desc    Register a new user
-// @route   POST /api/auth/register
-// @access  Public
-export const registerUser = async (req, res, next) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { email, password, name, role } = req.body;
-
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(409).json({ error: 'An account with this email already exists' });
-    }
-    
-    const verificationToken = generateVerificationToken();
-    const newUser = new User({
-      email,
-      password_hash: password, // Will be hashed by userModel pre-save hook
-      name,
-      role,
-      email_verification_token: verificationToken,
-      email_verification_expires: Date.now() + 3600000, // 1 hour from now
-    });
-
-    await newUser.save();
-    
-    // Send verification email (mocked for now)
-    await sendVerificationEmail(newUser.email, verificationToken);
-
-    res.status(201).json({
-      message: 'User created successfully. Please check your email to verify your account.',
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-
-// @desc    Authenticate user & get token
-// @route   POST /api/auth/login
-// @access  Public
-export const loginUser = async (req, res, next) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { email, password } = req.body;
-
-    const user = await User.findOne({ email }).select('+password_hash');
-
-    if (!user || !user.is_active) {
-      return res.status(401).json({ error: 'Invalid credentials or account disabled' });
-    }
-    
-    // if (!user.is_email_verified) {
-    //     return res.status(403).json({ error: 'Please verify your email before logging in.' });
-    // }
-
-    const isValidPassword = user.comparePassword(password);
-    if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    user.last_login = new Date();
-    await user.save();
-
-    const { accessToken, refreshToken } = generateTokens(user);
-
-    setRefreshTokenCookie(res, refreshToken);
-
-    res.json({
-      message: 'Login successful',
-      user: { id: user.id, email: user.email, name: user.name, role: user.role },
-      accessToken
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-
-// @desc    Refresh access token
-// @route   POST /api/auth/refresh
-// @access  Public
-export const refreshToken = async (req, res, next) => {
-  try {
-    const { refreshToken } = req.cookies;
-    if (!refreshToken) {
-      return res.status(401).json({ error: 'Refresh token required' });
-    }
-
-    jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, async (err, decoded) => {
-      if (err) {
-        return res.status(403).json({ error: 'Invalid refresh token' });
-      }
-
-      const user = await User.findOne({ _id: decoded.userId, is_active: true })
-        .select('id email name role');
-      
-      if (!user) {
-        return res.status(403).json({ error: 'User not found' });
-      }
-
-      const { accessToken } = generateTokens(user);
-      res.json({ accessToken, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// @desc    Logout user
-// @route   POST /api/auth/logout
-// @access  Private
-export const logoutUser = (req, res) => {
-  res.clearCookie('refreshToken');
-  res.json({ message: 'Logged out successfully' });
-};
-
-// @desc    Get current user profile
-// @route   GET /api/auth/me
-// @access  Private
-export const getMe = (req, res) => {
-  res.json({ user: req.user });
-};
-
-
-// @desc    Verify user email
-// @route   GET /api/auth/verify-email/:token
-// @access  Public
-export const verifyEmail = async (req, res, next) => {
-    try {
-        const { token } = req.params;
-        const user = await User.findOne({
-            email_verification_token: token,
-            email_verification_expires: { $gt: Date.now() },
-        });
-        
-        if (!user) {
-            return res.status(400).json({ error: 'Invalid or expired verification token.' });
-        }
-        
-        user.is_email_verified = true;
-        user.email_verification_token = undefined;
-        user.email_verification_expires = undefined;
-        await user.save();
-        
-        res.json({ message: 'Email verified successfully. You can now log in.' });
-        
-    } catch (error) {
-        next(error);
-    }
-};
-
-
-// @desc    Request password reset
-// @route   POST /api/auth/forgot-password
-// @access  Public
-export const forgotPassword = async (req, res, next) => {
-    try {
-        const { email } = req.body;
-        const user = await User.findOne({ email });
-        
-        if (!user) {
-            return res.status(404).json({ error: 'User with that email does not exist.' });
-        }
-        
-        const resetToken = generateResetToken();
-        user.password_reset_token = resetToken;
-        user.password_reset_expires = Date.now() + 3600000; // 1 hour
-        await user.save();
-        
-        // Send password reset email
-        await sendPasswordResetEmail(user.email, resetToken);
-        
-        res.json({ message: 'Password reset email sent. Please check your inbox.' });
-        
-    } catch (error) {
-        next(error);
-    }
-};
-
-// @desc    Reset password with token
-// @route   POST /api/auth/reset-password/:token
-// @access  Public
-export const resetPassword = async (req, res, next) => {
-    try {
-        const { token } = req.params;
-        const { password } = req.body;
-        
-        const user = await User.findOne({
-            password_reset_token: token,
-            password_reset_expires: { $gt: Date.now() },
-        });
-        
-        if (!user) {
-            return res.status(400).json({ error: 'Invalid or expired password reset token.' });
-        }
-        
-        // The pre-save hook in userModel will hash the password
-        user.password_hash = password;
-        user.password_reset_token = undefined;
-        user.password_reset_expires = undefined;
-        await user.save();
-        
-        res.json({ message: 'Password has been reset successfully.' });
-
-    } catch (error) {
-        next(error);
-    }
-};
-</file>
-
 <file path="BackEnd/middleware/auth.js">
 import jwt from 'jsonwebtoken';
 import User from '../models/userModel.js';
@@ -6054,6 +5611,87 @@ export const optionalAuth = (req, res, next) => {
     next();
   });
 };
+</file>
+
+<file path="BackEnd/models/userModel.js">
+// BackEnd/models/userModel.js
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
+
+const userSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true,
+    index: true,
+  },
+  username: {
+    type: String,
+    unique: true,
+    sparse: true, // allows null but unique when exists
+  },
+  password_hash: {
+    type: String,
+    required: true,
+  },
+  role: {
+    type: String,
+    enum: ['designer', 'business', 'admin'],
+    default: 'designer',
+  },
+  is_active: {
+    type: Boolean,
+    default: true,
+  },
+  profile: {
+    avatar_url: { type: String, default: '' },
+    bio: { type: String, default: '' },
+    skills: [String],
+    hourly_rate: { type: Number },
+    company_name: { type: String },
+    website: { type: String },
+    location: { type: String },
+  },
+  saved_listings: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Listing',
+  }],
+}, {
+  timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
+});
+
+// Pre-save middleware to hash password
+userSchema.pre('save', async function(next) {
+  // Only hash the password if it has been modified (or is new)
+  if (!this.isModified('password_hash')) {
+    return next();
+  }
+  
+  // Check if password is already hashed (starts with $2a$ or $2b$)
+  if (this.password_hash && (this.password_hash.startsWith('$2a$') || this.password_hash.startsWith('$2b$'))) {
+    return next();
+  }
+  
+  // Hash the password
+  this.password_hash = await bcrypt.hash(this.password_hash, 12);
+  next();
+});
+
+// Method to compare password
+userSchema.methods.comparePassword = function(password) {
+  return bcrypt.compareSync(password, this.password_hash);
+};
+
+const User = mongoose.model('User', userSchema);
+
+export default User;
 </file>
 
 <file path="BackEnd/routes/authRoutes.js">
@@ -6225,6 +5863,127 @@ router.post('/:orderId/updates', authenticateToken, requireRole(['designer']), c
 export default router;
 </file>
 
+<file path="BackEnd/scripts/init.js">
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import connectDB from '../config/database.js';
+
+// Load Models
+import User from '../models/userModel.js';
+import Listing from '../models/listingModel.js';
+import Proposal from '../models/proposalModel.js';
+import Order from '../models/orderModel.js';
+import Message from '../models/messageModel.js';
+import Review from '../models/reviewModel.js';
+import PortfolioItem from '../models/portfolioItemModel.js';
+import Invoice from '../models/invoiceModel.js';
+
+dotenv.config();
+
+const clearDatabase = async () => {
+  try {
+    console.log('🗑️  Clearing existing data...');
+    // Order matters for logs, but not for Mongo's parallel deletion
+    await Invoice.deleteMany({});
+    await Review.deleteMany({});
+    await Message.deleteMany({});
+    await Order.deleteMany({});
+    await Proposal.deleteMany({});
+    await PortfolioItem.deleteMany({});
+    await Listing.deleteMany({});
+    await User.deleteMany({});
+    console.log('✅ Database cleared');
+  } catch (error) {
+    console.error('❌ Error clearing database:', error);
+    process.exit(1);
+  }
+};
+
+const createTestAccounts = async () => {
+  try {
+    console.log('👥 Creating test accounts...\n');
+
+    const accounts = [
+      {
+        email: 'designer@creative.com',
+        password_hash: 'design2024',
+        name: 'Creative Designer',
+        role: 'designer',
+        is_email_verified: true,
+        profile: {
+          bio: 'Professional designer specializing in branding and visual identity. Over 10 years of experience.',
+          skills: ['Logo Design', 'Branding', 'UI/UX', 'Illustration'],
+          location: 'New York, USA',
+          hourly_rate: 75,
+        },
+      },
+      {
+        email: 'business@startup.com',
+        password_hash: 'startup2024',
+        name: 'Tech Startup Co',
+        role: 'business',
+        is_email_verified: true,
+        profile: {
+          bio: 'Growing tech company looking for talented designers to help us build the next big thing.',
+        },
+      },
+      {
+        email: 'admin@shockwave.com',
+        password_hash: 'admin2024',
+        name: 'System Administrator',
+        role: 'admin',
+        is_email_verified: true,
+        profile: {
+          bio: 'Platform administrator.',
+          skills: ['Platform Management'],
+        },
+      },
+    ];
+
+    for (const account of accounts) {
+      // The password will be hashed by the pre-save middleware in the User model
+      const user = new User(account);
+      await user.save();
+      
+      console.log(`✅ Created ${account.role.toUpperCase()} account:`);
+      console.log(`   Email: ${account.email}`);
+      console.log(`   Password: ${account.password_hash}`); // Note: this is the plain text before hashing
+      console.log(`   Name: ${account.name}\n`);
+    }
+
+    console.log('═══════════════════════════════════════════');
+    console.log('🎉 TEST ACCOUNTS READY FOR TESTING');
+    console.log('═══════════════════════════════════════════');
+    console.log('\n📋 DESIGNER ACCOUNT:');
+    console.log('   Email: designer@creative.com');
+    console.log('   Password: design2024');
+    console.log('\n💼 BUSINESS ACCOUNT:');
+    console.log('   Email: business@startup.com');
+    console.log('   Password: startup2024');
+    console.log('\n🔐 ADMIN ACCOUNT:');
+    console.log('   Email: admin@shockwave.com');
+    console.log('   Password: admin2024');
+    console.log('\n═══════════════════════════════════════════\n');
+
+  } catch (error) {
+    console.error('❌ Error creating test accounts:', error);
+    process.exit(1);
+  }
+};
+
+const init = async () => {
+  console.log('\n🚀 Initializing ShockWave Digital Marketplace with MongoDB...\n');
+  await connectDB();
+  await clearDatabase();
+  // await createTestAccounts(); // COMMENTED OUT - No test accounts in production
+  console.log('✅ Initialization complete!\n');
+  await mongoose.disconnect();
+  process.exit(0);
+};
+
+init();
+</file>
+
 <file path="FrontEnd/App.jsx">
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
@@ -6389,196 +6148,6 @@ const Login = () => {
 };
 
 export default Login;
-</file>
-
-<file path="FrontEnd/pages/Messages.jsx">
-import { useState, useEffect, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { messageAPI } from '../services/api';
-import { io } from 'socket.io-client';
-
-const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
-  autoConnect: false, // Do not connect automatically
-  transports: ['polling', 'websocket']
-});
-
-const Messages = () => {
-  const { user } = useAuth();
-  const location = useLocation();
-  const navigate = useNavigate();
-  
-  const [threads, setThreads] = useState([]);
-  const [activeThread, setActiveThread] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(true);
-  
-  const messagesEndRef = useRef(null);
-
-  const fetchThreads = async () => {
-    if (!user) return [];
-    setLoading(true);
-    try {
-      const res = await messageAPI.getThreads();
-      setThreads(res.data);
-      return res.data;
-    } catch (error) {
-      console.error("Failed to fetch threads:", error);
-      return [];
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (user) {
-      socket.connect();
-      socket.emit('join_room', user.id);
-
-      const handleReceiveMessage = (message) => {
-        // If the message belongs to the currently active chat, add it to the view
-        if (activeThread && message.thread_id === activeThread.thread_id) {
-          setMessages((prev) => [...prev, message]);
-        }
-        // Always refresh the thread list to show the new "last message" and reorder
-        fetchThreads();
-      };
-      socket.on('receive_message', handleReceiveMessage);
-
-      // Initial data load and handling of "new conversation" state
-      const initialize = async () => {
-        const allThreads = await fetchThreads();
-        const newConversationUser = location.state?.newConversationWith;
-
-        if (newConversationUser) {
-          // Find if a thread already exists with this user
-          const existingThread = allThreads.find(t => t.participant_id === newConversationUser.id);
-          if (existingThread) {
-            handleThreadClick(existingThread);
-          } else {
-            // Create a temporary placeholder thread to start the conversation
-            const placeholder = {
-              thread_id: [user.id, newConversationUser.id].sort().join('-'),
-              participant_id: newConversationUser.id,
-              participant_name: newConversationUser.name,
-              last_message: 'Start the conversation!',
-              isPlaceholder: true,
-            };
-            setThreads(prev => [placeholder, ...prev]);
-            setActiveThread(placeholder);
-            setMessages([]);
-          }
-          // Clear the location state to prevent re-triggering
-          navigate(location.pathname, { replace: true, state: {} });
-        } else if (allThreads.length > 0 && !activeThread) {
-            // Select the first thread by default
-            handleThreadClick(allThreads[0]);
-        }
-      };
-      initialize();
-      
-      return () => {
-        socket.off('receive_message', handleReceiveMessage);
-        socket.disconnect();
-      };
-    }
-  }, [user, location.state]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const handleThreadClick = async (thread) => {
-    setActiveThread(thread);
-    if (thread.isPlaceholder) {
-      setMessages([]);
-      return;
-    }
-    try {
-      const res = await messageAPI.getMessages(thread.participant_id);
-      setMessages(res.data);
-    } catch (error) {
-      console.error("Failed to fetch messages:", error);
-    }
-  };
-  
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (newMessage.trim() === '' || !activeThread) return;
-    
-    // Emit the event to the server. The server is the source of truth.
-    socket.emit('send_message', {
-      sender_id: user.id,
-      recipient_id: activeThread.participant_id,
-      body: newMessage,
-    });
-    setNewMessage('');
-  };
-
-  if (loading) {
-    return <div className="p-4 text-center">Loading conversations...</div>;
-  }
-
-  return (
-    <div className="h-[calc(100vh-8rem)] flex bg-white max-w-7xl mx-auto my-8 rounded-lg shadow-lg border-2 border-mint/20 overflow-hidden">
-      {/* Left Panel: Conversation Threads */}
-      <div className="w-1/3 border-r-2 border-lightgray flex flex-col">
-        <div className="p-4 border-b-2 border-lightgray">
-          <h2 className="text-xl font-bold text-charcoal">Conversations</h2>
-        </div>
-        <div className="overflow-y-auto flex-1">
-          {threads.length === 0 ? (
-            <p className="p-4 text-charcoal-light">No conversations yet.</p>
-          ) : (
-            <ul>
-              {threads.map(thread => (
-                <li key={thread.thread_id} onClick={() => handleThreadClick(thread)} className={`p-4 cursor-pointer hover:bg-lightgray-light border-b border-lightgray ${activeThread?.thread_id === thread.thread_id ? 'bg-mint/10' : ''}`}>
-                  <p className="font-semibold text-charcoal">{thread.participant_name}</p>
-                  <p className="text-sm text-charcoal-light truncate">{thread.last_message}</p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-      
-      {/* Right Panel: Active Chat */}
-      <div className="w-2/3 flex flex-col bg-lightgray-light">
-        {activeThread ? (
-          <>
-            <div className="p-4 border-b-2 border-lightgray bg-white flex items-center">
-              <h2 className="text-xl font-bold text-charcoal">{activeThread.participant_name}</h2>
-            </div>
-            <div className="flex-1 p-4 overflow-y-auto">
-                {messages.map((msg) => (
-                  <div key={msg.id} className={`flex ${msg.sender_id === user.id ? 'justify-end' : 'justify-start'} mb-4`}>
-                    <div className={`max-w-md p-3 rounded-lg shadow-sm ${msg.sender_id === user.id ? 'bg-mint text-white' : 'bg-white text-charcoal'}`}>
-                      <p>{msg.body}</p>
-                      <p className={`text-xs mt-1 text-right ${msg.sender_id === user.id ? 'text-white/70' : 'text-charcoal-light'}`}>{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                    </div>
-                  </div>
-                ))}
-              <div ref={messagesEndRef} />
-            </div>
-            <div className="p-4 bg-white border-t-2 border-lightgray">
-              <form onSubmit={handleSendMessage} className="flex">
-                <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type a message..." className="flex-1 p-2 border-2 border-lightgray-dark rounded-l-lg focus:ring-mint focus:border-mint"/>
-                <button type="submit" className="px-4 py-2 bg-mint text-white rounded-r-lg hover:bg-mint-dark font-semibold">Send</button>
-              </form>
-            </div>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center text-charcoal-light text-center">
-            <p>Select a conversation to start chatting,<br />or contact a designer from their profile page.</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-export default Messages;
 </file>
 
 <file path="FrontEnd/pages/Profile.jsx">
@@ -6979,6 +6548,273 @@ const ProfileEdit = () => {
 export default ProfileEdit;
 </file>
 
+<file path="BackEnd/controllers/authController.js">
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { validationResult } from 'express-validator';
+import User from '../models/userModel.js';
+import { generateVerificationToken, generateResetToken } from '../utils/tokenUtils.js';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../services/emailService.js';
+
+// Generate JWT tokens
+const generateTokens = (user) => {
+  const accessToken = jwt.sign(
+    { userId: user.id, role: user.role }, 
+    process.env.JWT_SECRET, 
+    { expiresIn: '15m' }
+  );
+  
+  const refreshToken = jwt.sign(
+    { userId: user.id }, 
+    process.env.JWT_REFRESH_SECRET, 
+    { expiresIn: '7d' }
+  );
+
+  return { accessToken, refreshToken };
+};
+
+// Set refresh token cookie
+const setRefreshTokenCookie = (res, refreshToken) => {
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+};
+
+// @desc    Register a new user
+// @route   POST /api/auth/register
+// @access  Public
+export const registerUser = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email, password, name, role } = req.body;
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({ error: 'An account with this email already exists' });
+    }
+    
+    // Generate username from email
+    const emailPrefix = email.split('@')[0];
+    let username = emailPrefix.replace(/[^a-zA-Z0-9]/g, '_');
+    
+    // Ensure username is unique
+    let usernameExists = await User.findOne({ username });
+    let counter = 1;
+    while (usernameExists) {
+      username = `${emailPrefix.replace(/[^a-zA-Z0-9]/g, '_')}${counter}`;
+      usernameExists = await User.findOne({ username });
+      counter++;
+    }
+    
+    const verificationToken = generateVerificationToken();
+    const newUser = new User({
+      email,
+      username,
+      password_hash: password, // Will be hashed by userModel pre-save hook
+      name,
+      role,
+      email_verification_token: verificationToken,
+      email_verification_expires: Date.now() + 3600000, // 1 hour from now
+    });
+
+    await newUser.save();
+    
+    // Send verification email (mocked for now)
+    await sendVerificationEmail(newUser.email, verificationToken);
+
+    res.status(201).json({
+      message: 'User created successfully. Please check your email to verify your account.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+// @desc    Authenticate user & get token
+// @route   POST /api/auth/login
+// @access  Public
+export const loginUser = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email }).select('+password_hash');
+
+    if (!user || !user.is_active) {
+      return res.status(401).json({ error: 'Invalid credentials or account disabled' });
+    }
+    
+    // if (!user.is_email_verified) {
+    //     return res.status(403).json({ error: 'Please verify your email before logging in.' });
+    // }
+
+    const isValidPassword = user.comparePassword(password);
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    user.last_login = new Date();
+    await user.save();
+
+    const { accessToken, refreshToken } = generateTokens(user);
+
+    setRefreshTokenCookie(res, refreshToken);
+
+    res.json({
+      message: 'Login successful',
+      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+      accessToken
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+// @desc    Refresh access token
+// @route   POST /api/auth/refresh
+// @access  Public
+export const refreshToken = async (req, res, next) => {
+  try {
+    const { refreshToken } = req.cookies;
+    if (!refreshToken) {
+      return res.status(401).json({ error: 'Refresh token required' });
+    }
+
+    jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, async (err, decoded) => {
+      if (err) {
+        return res.status(403).json({ error: 'Invalid refresh token' });
+      }
+
+      const user = await User.findOne({ _id: decoded.userId, is_active: true })
+        .select('id email name role');
+      
+      if (!user) {
+        return res.status(403).json({ error: 'User not found' });
+      }
+
+      const { accessToken } = generateTokens(user);
+      res.json({ accessToken, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Logout user
+// @route   POST /api/auth/logout
+// @access  Private
+export const logoutUser = (req, res) => {
+  res.clearCookie('refreshToken');
+  res.json({ message: 'Logged out successfully' });
+};
+
+// @desc    Get current user profile
+// @route   GET /api/auth/me
+// @access  Private
+export const getMe = (req, res) => {
+  res.json({ user: req.user });
+};
+
+
+// @desc    Verify user email
+// @route   GET /api/auth/verify-email/:token
+// @access  Public
+export const verifyEmail = async (req, res, next) => {
+    try {
+        const { token } = req.params;
+        const user = await User.findOne({
+            email_verification_token: token,
+            email_verification_expires: { $gt: Date.now() },
+        });
+        
+        if (!user) {
+            return res.status(400).json({ error: 'Invalid or expired verification token.' });
+        }
+        
+        user.is_email_verified = true;
+        user.email_verification_token = undefined;
+        user.email_verification_expires = undefined;
+        await user.save();
+        
+        res.json({ message: 'Email verified successfully. You can now log in.' });
+        
+    } catch (error) {
+        next(error);
+    }
+};
+
+
+// @desc    Request password reset
+// @route   POST /api/auth/forgot-password
+// @access  Public
+export const forgotPassword = async (req, res, next) => {
+    try {
+        const { email } = req.body;
+        const user = await User.findOne({ email });
+        
+        if (!user) {
+            return res.status(404).json({ error: 'User with that email does not exist.' });
+        }
+        
+        const resetToken = generateResetToken();
+        user.password_reset_token = resetToken;
+        user.password_reset_expires = Date.now() + 3600000; // 1 hour
+        await user.save();
+        
+        // Send password reset email
+        await sendPasswordResetEmail(user.email, resetToken);
+        
+        res.json({ message: 'Password reset email sent. Please check your inbox.' });
+        
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc    Reset password with token
+// @route   POST /api/auth/reset-password/:token
+// @access  Public
+export const resetPassword = async (req, res, next) => {
+    try {
+        const { token } = req.params;
+        const { password } = req.body;
+        
+        const user = await User.findOne({
+            password_reset_token: token,
+            password_reset_expires: { $gt: Date.now() },
+        });
+        
+        if (!user) {
+            return res.status(400).json({ error: 'Invalid or expired password reset token.' });
+        }
+        
+        // The pre-save hook in userModel will hash the password
+        user.password_hash = password;
+        user.password_reset_token = undefined;
+        user.password_reset_expires = undefined;
+        await user.save();
+        
+        res.json({ message: 'Password has been reset successfully.' });
+
+    } catch (error) {
+        next(error);
+    }
+};
+</file>
+
 <file path="BackEnd/controllers/listingsController.js">
 import { validationResult } from 'express-validator';
 import Listing from '../models/listingModel.js';
@@ -7190,6 +7026,7 @@ export const getBookmarkedListings = async (req, res, next) => {
 
 <file path="BackEnd/controllers/messagesController.js">
 import { validationResult } from 'express-validator';
+import mongoose from 'mongoose';
 import Message from '../models/messageModel.js';
 import User from '../models/userModel.js';
 
@@ -7253,7 +7090,7 @@ export const sendMessage = async (req, res, next) => {
 // @access  Private
 export const getUserThreads = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = new mongoose.Types.ObjectId(req.user.id);
 
     const threads = await Message.aggregate([
       {
@@ -7304,12 +7141,10 @@ export const getUserThreads = async (req, res, next) => {
           last_message: '$lastMessage',
           last_message_date: '$lastMessageDate',
           unread_count: '$unreadCount',
-          participant: {
-            id: '$participantInfo._id',
-            name: '$participantInfo.name',
-            avatar_url: '$participantInfo.profile.avatar_url',
-            role: '$participantInfo.role',
-          },
+          participant_id: '$participantInfo._id',
+          participant_name: '$participantInfo.name',
+          participant_avatar: '$participantInfo.profile.avatar_url',
+          participant_role: '$participantInfo.role',
           _id: 0,
         },
       },
@@ -7328,7 +7163,7 @@ export const getUserThreads = async (req, res, next) => {
 export const getMessagesInThread = async (req, res, next) => {
   try {
     const { threadId } = req.params;
-    const userId = req.user.id;
+    const userId = new mongoose.Types.ObjectId(req.user.id);
 
     const messages = await Message.find({ thread_id: threadId })
       .populate('sender', 'name role profile.avatar_url')
@@ -7338,7 +7173,7 @@ export const getMessagesInThread = async (req, res, next) => {
 
     // Security: ensure user is part of this thread
     const isParticipant = messages.some(
-      (msg) => msg.sender._id.toString() === userId || msg.recipient._id.toString() === userId
+      (msg) => msg.sender._id.toString() === userId.toString() || msg.recipient._id.toString() === userId.toString()
     );
 
     if (!isParticipant) {
@@ -7736,6 +7571,328 @@ const InvoiceDetail = () => {
 export default InvoiceDetail;
 </file>
 
+<file path="FrontEnd/pages/Messages.jsx">
+import { useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { messageAPI } from '../services/api';
+import { io } from 'socket.io-client';
+
+const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', {
+  autoConnect: false, // Do not connect automatically
+  transports: ['polling', 'websocket'],
+  withCredentials: true
+});
+
+const Messages = () => {
+  const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  const [threads, setThreads] = useState([]);
+  const [activeThread, setActiveThread] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  
+  const messagesEndRef = useRef(null);
+
+  const fetchThreads = async () => {
+    if (!user) return [];
+    setLoading(true);
+    try {
+      const res = await messageAPI.getThreads();
+      setThreads(res.data);
+      return res.data;
+    } catch (error) {
+      console.error("Failed to fetch threads:", error);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      socket.connect();
+      socket.emit('join_room', user.id);
+
+      const handleReceiveMessage = (message) => {
+        // If the message belongs to the currently active chat
+        if (activeThread && (message.thread_id === activeThread.thread_id || 
+            message.sender_id === activeThread.participant_id || 
+            message.recipient_id === activeThread.participant_id)) {
+          
+          setMessages((prev) => {
+            // Remove optimistic message if it exists (sent by this user)
+            const withoutOptimistic = prev.filter(msg => !msg.isOptimistic);
+            
+            // Check if this message already exists (avoid duplicates)
+            const messageExists = withoutOptimistic.some(msg => 
+              msg._id === message._id || msg.id === message._id
+            );
+            
+            if (messageExists) {
+              return prev;
+            }
+            
+            // Add the real message from server
+            return [...withoutOptimistic, message];
+          });
+        }
+        
+        // Always refresh the thread list to show the new "last message" and reorder
+        fetchThreads();
+      };
+      socket.on('receive_message', handleReceiveMessage);
+
+      // Initial data load and handling of "new conversation" state
+      const initialize = async () => {
+        const allThreads = await fetchThreads();
+        const newConversationUser = location.state?.newConversationWith;
+
+        if (newConversationUser) {
+          // Find if a thread already exists with this user
+          const existingThread = allThreads.find(t => t.participant_id === newConversationUser.id);
+          if (existingThread) {
+            handleThreadClick(existingThread);
+          } else {
+            // Create a temporary placeholder thread to start the conversation
+            const placeholder = {
+              thread_id: [user.id, newConversationUser.id].sort().join('-'),
+              participant_id: newConversationUser.id,
+              participant_name: newConversationUser.name,
+              last_message: 'Start the conversation!',
+              isPlaceholder: true,
+            };
+            setThreads(prev => [placeholder, ...prev]);
+            setActiveThread(placeholder);
+            setMessages([]);
+          }
+          // Clear the location state to prevent re-triggering
+          navigate(location.pathname, { replace: true, state: {} });
+        } else if (allThreads.length > 0 && !activeThread) {
+            // Select the first thread by default
+            handleThreadClick(allThreads[0]);
+        }
+      };
+      initialize();
+      
+      return () => {
+        socket.off('receive_message', handleReceiveMessage);
+        socket.disconnect();
+      };
+    }
+  }, [user, location.state]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleThreadClick = async (thread) => {
+    setActiveThread(thread);
+    if (thread.isPlaceholder) {
+      setMessages([]);
+      return;
+    }
+    try {
+      const res = await messageAPI.getMessages(thread.participant_id);
+      setMessages(res.data);
+    } catch (error) {
+      console.error("Failed to fetch messages:", error);
+    }
+  };
+  
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    if (newMessage.trim() === '' || !activeThread) return;
+    
+    const messageContent = newMessage.trim();
+    const threadId = activeThread.thread_id || `${user.id}_${activeThread.participant_id}`;
+    
+    // Create optimistic message for immediate UI update
+    const optimisticMessage = {
+      _id: `temp_${Date.now()}`, // Temporary ID
+      sender_id: user.id,
+      recipient_id: activeThread.participant_id,
+      content: messageContent,
+      thread_id: threadId,
+      created_at: new Date().toISOString(),
+      isOptimistic: true // Flag to identify optimistic messages
+    };
+    
+    // Optimistically add message to UI immediately
+    setMessages(prev => [...prev, optimisticMessage]);
+    
+    // Update the thread list to show this as the last message
+    setThreads(prevThreads => {
+      const updatedThreads = prevThreads.map(thread => {
+        if (thread.thread_id === threadId || thread.participant_id === activeThread.participant_id) {
+          return {
+            ...thread,
+            last_message: messageContent,
+            thread_id: threadId,
+            isPlaceholder: false
+          };
+        }
+        return thread;
+      });
+      
+      // If no existing thread found (new conversation), add it
+      const threadExists = updatedThreads.some(t => 
+        t.thread_id === threadId || t.participant_id === activeThread.participant_id
+      );
+      
+      if (!threadExists) {
+        updatedThreads.unshift({
+          thread_id: threadId,
+          participant_id: activeThread.participant_id,
+          participant_name: activeThread.participant_name,
+          last_message: messageContent
+        });
+      }
+      
+      return updatedThreads;
+    });
+    
+    // Clear input immediately for better UX
+    setNewMessage('');
+    
+    // Send to server (server will send back confirmation)
+    socket.emit('send_message', {
+      sender_id: user.id,
+      recipient_id: activeThread.participant_id,
+      content: messageContent,
+      thread_id: threadId
+    });
+  };
+
+  if (loading) {
+    return <div className="p-4 text-center">Loading conversations...</div>;
+  }
+
+  return (
+    <div className="h-[calc(100vh-8rem)] flex bg-white max-w-7xl mx-auto my-8 rounded-lg shadow-lg border-2 border-mint/20 overflow-hidden">
+      {/* Left Panel: Conversation Threads */}
+      <div className="w-1/3 border-r-2 border-lightgray flex flex-col">
+        <div className="p-4 border-b-2 border-lightgray">
+          <h2 className="text-xl font-bold text-charcoal">Conversations</h2>
+        </div>
+        <div className="overflow-y-auto flex-1">
+          {threads.length === 0 ? (
+            <p className="p-4 text-charcoal-light">No conversations yet.</p>
+          ) : (
+            <ul>
+              {threads.map(thread => (
+                <li 
+                  key={thread.thread_id} 
+                  onClick={() => handleThreadClick(thread)} 
+                  className={`p-4 cursor-pointer hover:bg-lightgray-light border-b border-lightgray transition-colors ${activeThread?.thread_id === thread.thread_id ? 'bg-mint/10 border-l-4 border-l-mint' : ''}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-mint flex items-center justify-center text-white font-bold flex-shrink-0">
+                      {thread.participant_name?.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-charcoal truncate">{thread.participant_name}</p>
+                      <p className="text-xs text-charcoal-light">{thread.participant_role || 'User'}</p>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+      
+      {/* Right Panel: Active Chat */}
+      <div className="w-2/3 flex flex-col bg-lightgray-light">
+        {activeThread ? (
+          <>
+            {/* Chat Header */}
+            <div className="p-4 border-b-2 border-lightgray bg-white flex items-center gap-3 shadow-sm">
+              <div className="w-10 h-10 rounded-full bg-mint flex items-center justify-center text-white font-bold text-lg">
+                {activeThread.participant_name?.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-charcoal">{activeThread.participant_name}</h2>
+                <p className="text-xs text-charcoal-light">{activeThread.participant_role || 'User'}</p>
+              </div>
+            </div>
+
+            {/* Messages Area */}
+            <div className="flex-1 p-4 overflow-y-auto space-y-4">
+              {messages.map((msg, index) => {
+                const isOwnMessage = msg.sender_id === user.id;
+                const showAvatar = index === 0 || messages[index - 1].sender_id !== msg.sender_id;
+                const showTimestamp = index === messages.length - 1 || messages[index + 1].sender_id !== msg.sender_id;
+                
+                return (
+                  <div key={msg.id || msg._id} className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} items-end gap-2`}>
+                    {/* Left Avatar (for other user) */}
+                    {!isOwnMessage && (
+                      <div className={`w-8 h-8 rounded-full bg-mint flex items-center justify-center text-white font-semibold text-sm flex-shrink-0 ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
+                        {activeThread.participant_name?.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+
+                    {/* Message Bubble */}
+                    <div className={`flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'} max-w-md`}>
+                      <div className={`px-4 py-2 rounded-2xl shadow-sm ${isOwnMessage ? 'bg-mint text-white rounded-br-sm' : 'bg-white text-charcoal rounded-bl-sm'}`}>
+                        <p className="text-sm leading-relaxed">{msg.body || msg.content}</p>
+                      </div>
+                      {showTimestamp && (
+                        <span className="text-xs text-charcoal-light mt-1 px-2">
+                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Right Avatar (for own messages) */}
+                    {isOwnMessage && (
+                      <div className={`w-8 h-8 rounded-full bg-charcoal flex items-center justify-center text-white font-semibold text-sm flex-shrink-0 ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
+                        {user.name?.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Message Input - Fixed at Bottom */}
+            <div className="p-4 bg-white border-t-2 border-lightgray">
+              <form onSubmit={handleSendMessage} className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={newMessage} 
+                  onChange={(e) => setNewMessage(e.target.value)} 
+                  placeholder={`Message ${activeThread.participant_name}...`}
+                  className="flex-1 px-4 py-3 border-2 border-lightgray-dark rounded-full focus:outline-none focus:ring-2 focus:ring-mint focus:border-transparent"
+                />
+                <button 
+                  type="submit" 
+                  disabled={!newMessage.trim()}
+                  className="px-6 py-3 bg-mint text-white rounded-full hover:bg-mint-dark font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Send
+                </button>
+              </form>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-charcoal-light text-center">
+            <p className="text-lg">Select a conversation to start chatting,<br />or contact a designer from their profile page.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Messages;
+</file>
+
 <file path="FrontEnd/services/api.js">
 import axios from 'axios';
 
@@ -8030,7 +8187,67 @@ app.use('/api/reviews', reviewsRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.get('/api/health', (req, res) => res.json({ status: 'OK' }));
 
-io.on('connection', (socket) => { /* Socket logic remains */ });
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('✅ User connected:', socket.id);
+
+  // Join user to their personal room for receiving messages
+  socket.on('join_room', (userId) => {
+    socket.join(`user_${userId}`);
+    console.log(`✅ User ${userId} joined their room`);
+  });
+
+  // Handle sending messages
+  socket.on('send_message', async (messageData) => {
+    try {
+      console.log('📨 Received message:', messageData);
+      
+      // Create and save message to MongoDB (match the Message model schema!)
+      const newMessage = new Message({
+        sender: messageData.sender_id,      // Model uses 'sender' not 'sender_id'
+        recipient: messageData.recipient_id, // Model uses 'recipient' not 'recipient_id'
+        body: messageData.content,           // Model uses 'body' not 'content'
+        thread_id: messageData.thread_id || `${messageData.sender_id}_${messageData.recipient_id}`,
+      });
+      
+      const savedMessage = await newMessage.save();
+      console.log('💾 Message saved to DB:', savedMessage._id);
+      
+      // Convert to plain object with proper field names for frontend
+      const messageToSend = {
+        _id: savedMessage._id,
+        id: savedMessage._id.toString(),
+        sender_id: savedMessage.sender,
+        recipient_id: savedMessage.recipient,
+        content: savedMessage.body,
+        thread_id: savedMessage.thread_id,
+        created_at: savedMessage.created_at,
+        is_read: savedMessage.is_read
+      };
+      
+      // Emit to recipient's room
+      io.to(`user_${messageData.recipient_id}`).emit('receive_message', messageToSend);
+      console.log(`📤 Sent to recipient: user_${messageData.recipient_id}`);
+      
+      // Also emit back to sender for confirmation
+      io.to(`user_${messageData.sender_id}`).emit('receive_message', messageToSend);
+      console.log(`📤 Sent to sender: user_${messageData.sender_id}`);
+      
+    } catch (error) {
+      console.error('❌ Error sending message:', error);
+      console.error('Error details:', error.stack);
+      socket.emit('message_error', { 
+        error: 'Failed to send message',
+        details: error.message 
+      });
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('❌ User disconnected:', socket.id);
+  });
+});
+
 app.use(errorHandler);
 
 server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
