@@ -75,11 +75,20 @@ export const registerUser = async (req, res, next) => {
 
     await newUser.save();
     
-    // Send verification email (mocked for now)
-    await sendVerificationEmail(newUser.email, verificationToken);
+    // --- UPDATE STARTS HERE ---
+    try {
+      console.log("Attempting to send email...");
+      // Attempt to send email, but catch the error if it times out
+      await sendVerificationEmail(newUser.email, verificationToken);
+      console.log("Email sent successfully");
+    } catch (emailError) {
+      // If email fails, we log it but DO NOT crash the request
+      console.error("⚠️ Email failed to send (likely Google blocking Render IP):", emailError.message);
+    }
+    // --- UPDATE ENDS HERE ---
 
     res.status(201).json({
-      message: 'User created successfully. Please check your email to verify your account.',
+      message: 'User created successfully! (Note: Email verification might be delayed due to server restrictions)',
     });
   } catch (error) {
     next(error);
