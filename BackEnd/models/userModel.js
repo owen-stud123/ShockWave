@@ -47,8 +47,33 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Listing',
   }],
+  // Email verification fields
+  email_verification_token: String,
+  email_verification_expires: Date,
+  is_email_verified: {
+    type: Boolean,
+    default: false,
+  },
+  // Password reset fields
+  password_reset_token: String,
+  password_reset_expires: Date,
+  last_login: Date,
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
+});
+
+// Create text index for efficient searching
+userSchema.index({
+  name: 'text',
+  'profile.bio': 'text',
+  'profile.skills': 'text'
+}, {
+  weights: {
+    name: 10,
+    'profile.skills': 5,
+    'profile.bio': 1
+  },
+  name: 'user_text_search'
 });
 
 // Pre-save middleware to hash password

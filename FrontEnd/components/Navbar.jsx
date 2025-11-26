@@ -13,7 +13,9 @@ const Navbar = () => {
   useEffect(() => {
     if (isAuthenticated && user) {
       const url = user.avatar_url
-        ? `${import.meta.env.VITE_SERVER_URL || 'http://localhost:5000'}${user.avatar_url}`
+        ? (user.avatar_url.startsWith('http') 
+            ? user.avatar_url 
+            : `${import.meta.env.VITE_SERVER_URL || 'http://localhost:5000'}${user.avatar_url}`)
         : `https://ui-avatars.com/api/?name=${user.name.replace(' ', '+')}&background=00CEC9&color=fff`;
       setAvatarUrl(url);
     } else {

@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { Suspense, lazy } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -14,7 +15,6 @@ import Listings from './pages/Listings.jsx';
 import CreateListing from './pages/CreateListing.jsx';
 import ListingDetail from './pages/ListingDetail';
 import OrderDetail from './pages/OrderDetail';
-import AdminPanel from './pages/AdminPanel';
 import PrivateRoute from './components/PrivateRoute';
 import SavedProjects from './pages/SavedProjects';
 import ForgotPassword from './pages/ForgotPassword';
@@ -24,13 +24,17 @@ import InvoiceDetail from './pages/InvoiceDetail';
 import { motion } from 'framer-motion';
 import './styles/App.css';
 
-function App() {
+// Lazy load admin panel (heavy with amCharts)
+const AdminPanel = lazy(() => import('./pages/AdminPanel'));
+
+function AppContent() {
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin');
+
   return (
-    <AuthProvider>
-      <Router>
-        <div className="min-h-screen bg-lightgray-light flex flex-col">
-          <Navbar />
-          <motion.main className="flex-grow" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+    <div className="min-h-screen bg-lightgray-light flex flex-col">
+      {!isAdminRoute && <Navbar />}
+      <motion.main className="flex-grow" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<Home />} />
@@ -56,11 +60,25 @@ function App() {
               <Route path="/listings/new" element={<PrivateRoute roles={['business']}><CreateListing /></PrivateRoute>} />
               
               {/* Admin Route */}
-              <Route path="/admin/*" element={<PrivateRoute roles={['admin']}><AdminPanel /></PrivateRoute>} />
+              <Route path="/admin/*" element={
+                <PrivateRoute roles={['admin']}>
+                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
+                    <AdminPanel />
+                  </Suspense>
+                </PrivateRoute>
+              } />
             </Routes>
           </motion.main>
-          <Footer />
+          {!isAdminRoute && <Footer />}
         </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <AppContent />
       </Router>
     </AuthProvider>
   );

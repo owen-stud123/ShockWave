@@ -1,15 +1,23 @@
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { dashboardAPI, orderAPI, listingAPI } from '../services/api';
 
 const Dashboard = () => {
   const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({ projects: 0, earnings: 0, messages: 0, reviews: 0 });
   const [orders, setOrders] = useState([]);
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Redirect admin users to admin panel
+  useEffect(() => {
+    if (user && user.role === 'admin') {
+      navigate('/admin');
+    }
+  }, [user, navigate]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -62,9 +70,8 @@ const Dashboard = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <div className="mb-8"><h1 className="text-3xl font-bold text-charcoal mb-2">Welcome, {user.name}!</h1></div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <StatCard title="Active Projects" value={stats.projects} />
-            <StatCard title={user.role === 'designer' ? 'Total Earnings' : 'Total Spent'} value={`$${stats.earnings.toFixed(2)}`} />
             <StatCard title="Unread Messages" value={stats.messages} />
             <StatCard title="Reviews Received" value={stats.reviews} />
           </div>

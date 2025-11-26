@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { profileAPI, uploadAPI } from '../services/api';
 import { motion } from 'framer-motion';
@@ -34,7 +35,11 @@ const ProfileEdit = () => {
       });
       setPortfolioItems(res.data.portfolio_items || []);
       if (res.data.avatar_url) {
-        setAvatarPreview(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${res.data.avatar_url}`);
+        // Check if it's already a full URL (Cloudinary) or a local path
+        const avatarUrl = res.data.avatar_url.startsWith('http') 
+          ? res.data.avatar_url 
+          : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${res.data.avatar_url}`;
+        setAvatarPreview(avatarUrl);
       }
     } catch (err) {
       setError('Could not load your profile data.');
@@ -78,7 +83,7 @@ const ProfileEdit = () => {
       await profileAPI.updateProfile(user.id, profileData);
       
       await checkAuth(); // Refresh user context
-      alert("Profile updated successfully!");
+      toast.success("Profile updated successfully!");
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to update profile.');
     } finally {
@@ -115,10 +120,32 @@ const ProfileEdit = () => {
   };
 
   const handleDeletePortfolioItem = async (itemId) => {
-    if (!window.confirm("Are you sure you want to delete this portfolio item?")) return;
+    const confirmed = await new Promise((resolve) => {
+      toast((t) => (
+        <div>
+          <p className="font-semibold mb-2">Delete this portfolio item?</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { toast.dismiss(t.id); resolve(true); }}
+              className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => { toast.dismiss(t.id); resolve(false); }}
+              className="bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ), { duration: Infinity });
+    });
+    if (!confirmed) return;
     try {
         await uploadAPI.deletePortfolioItem(itemId);
         setPortfolioItems(portfolioItems.filter(item => item._id !== itemId));
+        toast.success('Portfolio item deleted successfully');
     } catch (err) {
         setError(err.response?.data?.error || 'Failed to delete item.');
     }

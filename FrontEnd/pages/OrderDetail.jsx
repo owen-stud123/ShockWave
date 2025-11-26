@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { orderAPI, reviewAPI, invoiceAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import ReviewForm from '../components/ReviewForm';
@@ -42,23 +43,66 @@ const OrderDetail = () => {
     }, [fetchOrderData]);
 
     const handleStatusUpdate = async (status) => {
-        if (!window.confirm(`Are you sure you want to mark this order as ${status}?`)) return;
+        const confirmed = await new Promise((resolve) => {
+            toast((t) => (
+                <div>
+                    <p className="font-semibold mb-2">Mark this order as {status}?</p>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => { toast.dismiss(t.id); resolve(true); }}
+                            className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                        >
+                            Confirm
+                        </button>
+                        <button
+                            onClick={() => { toast.dismiss(t.id); resolve(false); }}
+                            className="bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            ), { duration: Infinity });
+        });
+        if (!confirmed) return;
         try {
             const res = await orderAPI.updateOrderStatus(id, status);
             setOrder(prev => ({ ...prev, ...res.data.order }));
+            toast.success(`Order marked as ${status}`);
         } catch (error) {
-            alert(`Failed to update status: ${error.response?.data?.error || 'Server error'}`);
+            toast.error(`Failed to update status: ${error.response?.data?.error || 'Server error'}`);
         }
     };
 
-    const handleInvoiceCreation = async () => {
-        if (!window.confirm("This will generate a formal invoice for this completed project. Continue?")) return;
+    const handleCreateInvoice = async () => {
+        const confirmed = await new Promise((resolve) => {
+            toast((t) => (
+                <div>
+                    <p className="font-semibold mb-2">Generate a formal invoice for this completed project?</p>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => { toast.dismiss(t.id); resolve(true); }}
+                            className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+                        >
+                            Create Invoice
+                        </button>
+                        <button
+                            onClick={() => { toast.dismiss(t.id); resolve(false); }}
+                            className="bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            ), { duration: Infinity });
+        });
+        if (!confirmed) return;
         try {
             await invoiceAPI.createInvoice({ order_id: id });
-            alert("Invoice created successfully!");
+            toast.success("Invoice created successfully!");
             navigate('/invoices');
         } catch (error) {
-             alert(`Failed to create invoice: ${error.response?.data?.error || 'Server error'}`);
+             toast.error(`Failed to create invoice: ${error.response?.data?.error || 'Server error'}`);
         }
     };
 
@@ -73,8 +117,9 @@ const OrderDetail = () => {
                 progress_updates: [...prev.progress_updates, res.data.update]
             }));
             setProgressUpdate('');
+            toast.success('Progress update posted successfully');
         } catch (error) {
-            alert(`Failed to post update: ${error.response?.data?.error || 'Server error'}`);
+            toast.error(`Failed to post update: ${error.response?.data?.error || 'Server error'}`);
         } finally {
             setIsSubmittingUpdate(false);
         }
@@ -105,7 +150,7 @@ const OrderDetail = () => {
                         <h2 className="font-bold text-lg mb-2">Actions</h2>
                         {isDesigner && order.status === 'in_progress' && <button onClick={() => handleStatusUpdate('delivered')} className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">Mark as Delivered</button>}
                         {isBusiness && order.status === 'delivered' && <button onClick={() => handleStatusUpdate('completed')} className="w-full bg-green-500 text-white py-2 rounded hover:bg-green-600">Accept Delivery & Mark Complete</button>}
-                        {isDesigner && order.status === 'completed' && <button onClick={handleInvoiceCreation} className="w-full bg-purple-500 text-white py-2 rounded hover:bg-purple-600">Create Invoice</button>}
+                        {isDesigner && order.status === 'completed' && <button onClick={handleCreateInvoice} className="w-full bg-purple-500 text-white py-2 rounded hover:bg-purple-600">Create Invoice</button>}
                     </div>
                 </div>
             </motion.div>

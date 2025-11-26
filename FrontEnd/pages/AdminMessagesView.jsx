@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { adminAPI } from '../services/api';
 
 const AdminMessagesView = () => {
@@ -12,7 +13,8 @@ const AdminMessagesView = () => {
         try {
             setLoading(true);
             const res = await adminAPI.getAllMessageThreads();
-            setThreads(res.data);
+            const data = res.data.threads || res.data;
+            setThreads(Array.isArray(data) ? data : []);
         } catch (err) {
             setError("Failed to fetch message threads.");
             console.error(err);
@@ -30,7 +32,8 @@ const AdminMessagesView = () => {
         setMessages([]); // Clear previous messages
         try {
             const res = await adminAPI.getMessagesForModeration(thread.thread_id);
-            setMessages(res.data);
+            const data = res.data.messages || res.data;
+            setMessages(Array.isArray(data) ? data : []);
         } catch (err) {
             setError(`Failed to fetch messages for thread ${thread.thread_id}.`);
             console.error(err);
@@ -47,8 +50,9 @@ const AdminMessagesView = () => {
             setThreads(prevThreads => prevThreads.map(t => 
                 t.thread_id === activeThread.thread_id ? updatedThread : t
             ));
+            toast.success(`Thread ${res.data.is_flagged ? 'flagged' : 'unflagged'} successfully`);
         } catch (error) {
-            alert('Failed to update flag status.');
+            toast.error('Failed to update flag status.');
         }
     };
 

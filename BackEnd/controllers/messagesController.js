@@ -2,6 +2,7 @@ import { validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 import Message from '../models/messageModel.js';
 import User from '../models/userModel.js';
+import { generateThreadId } from '../utils/chatUtils.js';
 
 // @desc    Send a message (creates thread if needed)
 // @route   POST /api/messages
@@ -19,16 +20,14 @@ export const sendMessage = async (req, res, next) => {
     if (sender_id === recipient_id) {
       return res.status(400).json({ error: 'You cannot send a message to yourself.' });
     }
-
     // Ensure recipient exists
     const recipient = await User.findById(recipient_id);
     if (!recipient) {
       return res.status(404).json({ error: 'Recipient not found.' });
     }
 
-    // Generate deterministic thread_id: smaller_id_larger_id
-    const ids = [sender_id, recipient_id].sort();
-    const thread_id = `thread_${ids[0]}_${ids[1]}`;
+    // Generate deterministic thread_id using utility function
+    const thread_id = generateThreadId(sender_id, recipient_id);
 
     const message = new Message({
       thread_id,
@@ -137,12 +136,25 @@ export const getMessagesInThread = async (req, res, next) => {
   try {
     const { threadId } = req.params;
     const userId = new mongoose.Types.ObjectId(req.user.id);
+    
+    // Pagination - load last N messages (default 50)
+    const limit = parseInt(req.query.limit) || 50;
+    const before = req.query.before; // ISO date string for cursor-based pagination
+    
+    const query = { thread_id: threadId };
+    if (before) {
+      query.created_at = { $lt: new Date(before) };
+    }
 
-    const messages = await Message.find({ thread_id: threadId })
+    const messages = await Message.find(query)
       .populate('sender', 'name role profile.avatar_url')
       .populate('recipient', 'name role profile.avatar_url')
-      .sort({ created_at: 1 })
+      .sort({ created_at: -1 }) // Get most recent first
+      .limit(limit)
       .lean();
+    
+    // Reverse to show oldest first in UI
+    messages.reverse();
 
     // Security: ensure user is part of this thread
     const isParticipant = messages.some(
@@ -152,6 +164,9 @@ export const getMessagesInThread = async (req, res, next) => {
     if (!isParticipant) {
       return res.status(403).json({ error: 'You do not have access to this conversation.' });
     }
+
+    // Check if thread is flagged
+    const isFlagged = messages.length > 0 && messages[0].is_flagged;
 
     // Mark all messages as read where current user is recipient
     await Message.updateMany(
@@ -180,7 +195,12 @@ export const getMessagesInThread = async (req, res, next) => {
       },
     }));
 
-    res.json(formatted);
+    res.json({ 
+      messages: formatted, 
+      is_flagged: isFlagged,
+      hasMore: messages.length === limit,
+      oldestMessageDate: messages.length > 0 ? messages[0].created_at : null
+    });
   } catch (error) {
     next(error);
   }

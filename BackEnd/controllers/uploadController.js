@@ -1,30 +1,24 @@
 import multer from 'multer';
 import path from 'path';
-import fs from 'fs';
+import { v2 as cloudinary } from 'cloudinary';
 import User from '../models/userModel.js';
-import PortfolioItem from '../models/portfolioItemModel.js'; // Import the new model
+import PortfolioItem from '../models/portfolioItemModel.js';
 
-const uploadDir = './uploads';
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
-}
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 // Define allowed file types
 const fileTypes = {
-  avatar: /jpeg|jpg|png|gif/,
+  avatar: /jpeg|jpg|png|gif|webp/,
   document: /jpeg|jpg|png|pdf|doc|docx/
 };
 
-// Reusable storage engine
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
-  }
-});
+// Use memory storage for Cloudinary uploads
+const storage = multer.memoryStorage();
 
 // Reusable file filter
 const createFileFilter = (type) => (req, file, cb) => {
@@ -67,16 +61,59 @@ export const uploadAvatar = (req, res, next) => {
       return res.status(400).json({ error: 'Please select a file to upload.' });
     }
 
-    const avatarUrl = `/uploads/${req.file.filename}`;
-
     try {
-      await User.findByIdAndUpdate(
-        req.user.id,
-        { $set: { 'profile.avatar_url': avatarUrl } }
+      // Get user's current avatar URL to delete old one
+      const user = await User.findById(req.user.id);
+      const oldAvatarUrl = user?.profile?.avatar_url;
+      
+      // Upload to Cloudinary using upload_stream
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'shockwave/avatars',
+          public_id: `avatar_${req.user.id}_${Date.now()}`,
+          transformation: [
+            { width: 500, height: 500, crop: 'fill', gravity: 'face' },
+            { quality: 'auto', fetch_format: 'auto' }
+          ]
+        },
+        async (error, result) => {
+          if (error) {
+            return res.status(500).json({ error: 'Failed to upload image to cloud storage' });
+          }
+
+          const avatarUrl = result.secure_url;
+
+          try {
+            await User.findByIdAndUpdate(
+              req.user.id,
+              { $set: { 'profile.avatar_url': avatarUrl } }
+            );
+            
+            // Delete old avatar from Cloudinary if it exists
+            if (oldAvatarUrl && oldAvatarUrl.includes('cloudinary.com')) {
+              try {
+                const urlParts = oldAvatarUrl.split('/');
+                const filename = urlParts[urlParts.length - 1].split('.')[0];
+                const folder = urlParts.slice(-2, -1)[0];
+                const publicId = `shockwave/${folder}/${filename}`;
+                await cloudinary.uploader.destroy(publicId);
+              } catch (cloudinaryError) {
+                console.error('Failed to delete old avatar from Cloudinary:', cloudinaryError);
+                // Don't fail the request if old image deletion fails
+              }
+            }
+            
+            res.json({ message: 'Avatar uploaded successfully', avatarUrl });
+          } catch (dbError) {
+            next(dbError);
+          }
+        }
       );
-      res.json({ message: 'Avatar uploaded successfully', avatarUrl });
-    } catch (dbError) {
-      next(dbError);
+
+      // Pipe the buffer to Cloudinary
+      uploadStream.end(req.file.buffer);
+    } catch (uploadError) {
+      next(uploadError);
     }
   });
 };
@@ -98,26 +135,50 @@ export const uploadPortfolioItem = (req, res, next) => {
         return res.status(400).json({ error: 'Title is required for portfolio item.' });
     }
 
-    const file_url = `/uploads/${req.file.filename}`;
     const file_type = path.extname(req.file.originalname).substring(1);
 
     try {
-      const portfolioItem = new PortfolioItem({
-        designer: req.user.id,
-        title,
-        description,
-        file_url,
-        file_type
-      });
-      await portfolioItem.save();
+      // Upload to Cloudinary
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'shockwave/portfolio',
+          public_id: `portfolio_${req.user.id}_${Date.now()}`,
+          resource_type: 'auto', // Handles images, videos, and PDFs
+          transformation: file_type !== 'pdf' ? [
+            { width: 1200, crop: 'limit' },
+            { quality: 'auto', fetch_format: 'auto' }
+          ] : undefined
+        },
+        async (error, result) => {
+          if (error) {
+            return res.status(500).json({ error: 'Failed to upload file to cloud storage' });
+          }
 
-      res.status(201).json({ 
-        message: 'Portfolio item uploaded successfully', 
-        item: portfolioItem 
-      });
+          const file_url = result.secure_url;
 
-    } catch (dbError) {
-      next(dbError);
+          try {
+            const portfolioItem = new PortfolioItem({
+              designer: req.user.id,
+              title,
+              description,
+              file_url,
+              file_type
+            });
+            await portfolioItem.save();
+
+            res.status(201).json({ 
+              message: 'Portfolio item uploaded successfully', 
+              item: portfolioItem 
+            });
+          } catch (dbError) {
+            next(dbError);
+          }
+        }
+      );
+
+      uploadStream.end(req.file.buffer);
+    } catch (uploadError) {
+      next(uploadError);
     }
   });
 };
@@ -141,10 +202,25 @@ export const deletePortfolioItem = async (req, res, next) => {
             return res.status(403).json({ error: 'You are not authorized to delete this item' });
         }
         
-        // Optional: Delete file from server filesystem
-        const filePath = path.join(uploadDir, path.basename(item.file_url));
-        if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
+        // Delete from Cloudinary if URL is from Cloudinary
+        if (item.file_url && item.file_url.includes('cloudinary.com')) {
+            try {
+                // Extract public_id from Cloudinary URL
+                const urlParts = item.file_url.split('/');
+                const filename = urlParts[urlParts.length - 1].split('.')[0];
+                const folder = urlParts.slice(-2, -1)[0];
+                const publicId = `shockwave/${folder}/${filename}`;
+                
+                // Use appropriate method based on file type
+                if (item.file_type === 'pdf') {
+                    await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+                } else {
+                    await cloudinary.uploader.destroy(publicId);
+                }
+            } catch (cloudinaryError) {
+                console.error('Failed to delete from Cloudinary:', cloudinaryError);
+                // Continue with database deletion even if Cloudinary deletion fails
+            }
         }
         
         await item.deleteOne();

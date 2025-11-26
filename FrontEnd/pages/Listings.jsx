@@ -11,7 +11,9 @@ const Listings = () => {
     const fetchListings = async () => {
       try {
         const response = await listingAPI.getListings();
-        setListings(response.data);
+        // Handle paginated response
+        const data = response.data.listings || response.data;
+        setListings(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error('Failed to fetch listings:', error);
       } finally {

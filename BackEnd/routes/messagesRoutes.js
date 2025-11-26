@@ -6,6 +6,7 @@ import {
   getMessagesInThread,
 } from '../controllers/messagesController.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { messageLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
@@ -17,7 +18,7 @@ const sendMessageValidation = [
 ];
 
 // Send a new message (creates thread automatically)
-router.post('/', authenticateToken, sendMessageValidation, sendMessage);
+router.post('/', authenticateToken, messageLimiter, sendMessageValidation, sendMessage);
 
 // Get all conversation threads for the user
 router.get('/threads', authenticateToken, getUserThreads);

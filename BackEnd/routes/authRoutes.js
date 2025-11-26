@@ -11,6 +11,7 @@ import {
   resetPassword
 } from '../controllers/authController.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { authLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
@@ -19,7 +20,7 @@ const registerValidation = [
   body('email').isEmail().withMessage('Please enter a valid email').normalizeEmail(),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
   body('name').notEmpty().withMessage('Name is required').trim(),
-  body('role').isIn(['designer', 'business']).withMessage('Invalid role selected')
+  body('role').isIn(['designer', 'business', 'admin']).withMessage('Invalid role selected')
 ];
 
 const loginValidation = [
@@ -35,17 +36,17 @@ const resetPasswordValidation = [
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long')
 ];
 
-// Routes
-router.post('/register', registerValidation, registerUser);
-router.post('/login', loginValidation, loginUser);
+// Routes with rate limiting
+router.post('/register', authLimiter, registerValidation, registerUser);
+router.post('/login', authLimiter, loginValidation, loginUser);
 router.post('/refresh', refreshToken);
 router.post('/logout', authenticateToken, logoutUser);
 router.get('/me', authenticateToken, getMe);
 
 // Email Verification and Password Reset
 router.get('/verify-email/:token', verifyEmail);
-router.post('/forgot-password', forgotPasswordValidation, forgotPassword);
-router.post('/reset-password/:token', resetPasswordValidation, resetPassword);
+router.post('/forgot-password', authLimiter, forgotPasswordValidation, forgotPassword);
+router.post('/reset-password/:token', authLimiter, resetPasswordValidation, resetPassword);
 
 
 export default router;

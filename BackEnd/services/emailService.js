@@ -54,3 +54,14 @@ export const sendPasswordResetEmail = async (userEmail, token) => {
   `;
   await sendEmail(userEmail, subject, html);
 };
+
+// Verify SMTP connection on server startup
+transporter.verify(function (error, success) {
+  if (error) {
+    console.log('❌ SMTP Connection Error:', error.message);
+    console.log('   Please check your email credentials in .env file');
+  } else {
+    console.log('✅ SMTP Server is ready to send emails');
+    console.log(`   Connected to: ${process.env.SMTP_HOST}`);
+  }
+});

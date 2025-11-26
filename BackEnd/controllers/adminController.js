@@ -8,8 +8,28 @@ import Message from '../models/messageModel.js';
 // @access  Admin
 export const getAllUsers = async (req, res, next) => {
   try {
-    const users = await User.find({}).select('name email role is_active created_at').lean();
-    res.json(users);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+    
+    const total = await User.countDocuments({ role: { $ne: 'admin' } });
+    
+    const users = await User.find({ role: { $ne: 'admin' } })
+      .select('name email role is_active created_at')
+      .skip(skip)
+      .limit(limit)
+      .lean();
+    
+    res.json({
+      users,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: skip + users.length < total
+      }
+    });
   } catch (error) {
     next(error);
   }
@@ -39,7 +59,7 @@ export const updateUserStatus = async (req, res, next) => {
 export const getPlatformAnalytics = async (req, res, next) => {
   try {
     const [totalUsers, totalDesigners, totalBusinesses, totalProjects] = await Promise.all([
-        User.countDocuments(),
+        User.countDocuments({ role: { $ne: 'admin' } }),
         User.countDocuments({ role: 'designer' }),
         User.countDocuments({ role: 'business' }),
         Listing.countDocuments()
@@ -49,7 +69,7 @@ export const getPlatformAnalytics = async (req, res, next) => {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const userGrowth = await User.aggregate([
-      { $match: { created_at: { $gte: thirtyDaysAgo } } },
+      { $match: { created_at: { $gte: thirtyDaysAgo }, role: { $ne: 'admin' } } },
       { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$created_at' } }, count: { $sum: 1 } } },
       { $sort: { _id: 1 } },
     ]);
@@ -74,30 +94,71 @@ export const getPlatformAnalytics = async (req, res, next) => {
 // @access  Admin
 export const getAllMessageThreads = async (req, res, next) => {
     try {
-        const allMessages = await Message.find({})
-            .sort({ created_at: -1 })
-            .populate('sender', 'name')
-            .populate('recipient', 'name')
-            .lean();
-
-        const threadMap = new Map();
-        allMessages.forEach(msg => {
-            if (!threadMap.has(msg.thread_id)) {
-                threadMap.set(msg.thread_id, {
-                    thread_id: msg.thread_id,
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        
+        // Use aggregation for efficient pagination
+        const threads = await Message.aggregate([
+            { $sort: { created_at: -1 } },
+            {
+                $group: {
+                    _id: '$thread_id',
+                    last_message: { $first: '$body' },
+                    last_message_date: { $first: '$created_at' },
+                    is_flagged: { $first: '$is_flagged' },
+                    sender: { $first: '$sender' },
+                    recipient: { $first: '$recipient' }
+                }
+            },
+            { $sort: { last_message_date: -1 } },
+            { $skip: (page - 1) * limit },
+            { $limit: limit },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'sender',
+                    foreignField: '_id',
+                    as: 'senderInfo'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'recipient',
+                    foreignField: '_id',
+                    as: 'recipientInfo'
+                }
+            },
+            { $unwind: { path: '$senderInfo', preserveNullAndEmptyArrays: true } },
+            { $unwind: { path: '$recipientInfo', preserveNullAndEmptyArrays: true } },
+            {
+                $project: {
+                    thread_id: '$_id',
                     participants: [
-                        { id: msg.sender._id, name: msg.sender.name },
-                        { id: msg.recipient._id, name: msg.recipient.name }
+                        { id: '$senderInfo._id', name: '$senderInfo.name' },
+                        { id: '$recipientInfo._id', name: '$recipientInfo.name' }
                     ],
-                    last_message: msg.body,
-                    last_message_date: msg.created_at,
-                    is_flagged: msg.is_flagged, // Include the flag status
-                });
+                    last_message: 1,
+                    last_message_date: 1,
+                    is_flagged: 1,
+                    _id: 0
+                }
+            }
+        ]);
+        
+        // Get total count
+        const totalThreads = await Message.distinct('thread_id').then(ids => ids.length);
+
+        res.json({
+            threads,
+            pagination: {
+                page,
+                limit,
+                total: totalThreads,
+                totalPages: Math.ceil(totalThreads / limit),
+                hasMore: (page * limit) < totalThreads
             }
         });
-
-        const threads = Array.from(threadMap.values());
-        res.json(threads);
     } catch (error) {
         next(error);
     }

@@ -93,7 +93,7 @@ const Browse = () => {
                     <div className="p-6 flex-grow">
                     <div className="flex items-center mb-4">
                         <img 
-                        src={profile.avatar_url ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${profile.avatar_url}` : `https://ui-avatars.com/api/?name=${profile.name.replace(' ', '+')}`}
+                        src={profile.avatar_url ? (profile.avatar_url.startsWith('http') ? profile.avatar_url : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${profile.avatar_url}`) : `https://ui-avatars.com/api/?name=${profile.name.replace(' ', '+')}`}
                         alt={profile.name}
                         className="w-16 h-16 rounded-full object-cover border-2"
                         />

@@ -82,22 +82,6 @@ const Home = () => {
             </motion.div>
 
             <motion.div 
-              className="text-center p-6 sm:p-8 rounded-lg hover:bg-lightgray-light transition-colors border-2 border-transparent hover:border-mint"
-              whileHover={{ scale: 1.05 }}
-              transition={{ duration: 0.2 }}
-            >
-              <div className="bg-mint/10 w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
-                <svg className="w-8 h-8 sm:w-10 sm:h-10 text-mint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
-              <h3 className="text-xl sm:text-2xl font-semibold mb-3 sm:mb-4 text-charcoal">Secure Payments</h3>
-              <p className="text-base sm:text-lg text-charcoal-light">
-                Safe and secure payment processing with escrow protection for all transactions
-              </p>
-            </motion.div>
-
-            <motion.div 
               className="text-center p-6 sm:p-8 rounded-lg hover:bg-lightgray-light transition-colors sm:col-span-2 md:col-span-1 border-2 border-transparent hover:border-mint"
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.2 }}

@@ -4,6 +4,7 @@ import Proposal from '../models/proposalModel.js';
 import Listing from '../models/listingModel.js';
 import User from '../models/userModel.js';
 import ProgressUpdate from '../models/progressUpdateModel.js';
+import config from '../config/settings.js';
 
 export const createOrder = async (req, res, next) => {
   try {
@@ -19,7 +20,7 @@ export const createOrder = async (req, res, next) => {
     if (!['pending', 'shortlisted'].includes(proposal.status)) return res.status(400).json({ error: 'Proposal already processed' });
 
     const amount = proposal.price_offered;
-    const platform_fee = amount * 0.10;
+    const platform_fee = amount * config.platformFeePercentage;
 
     const order = new Order({
       buyer: buyerId,

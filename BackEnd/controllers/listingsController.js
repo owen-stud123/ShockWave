@@ -8,9 +8,19 @@ import User from '../models/userModel.js';
 // @access  Public
 export const getAllListings = async (req, res, next) => {
   try {
+    // Pagination parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+    
+    // Get total count for pagination metadata
+    const total = await Listing.countDocuments({ status: 'open' });
+    
     const listings = await Listing.find({ status: 'open' })
       .populate('owner', 'name')
       .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
       .lean();
     
     const formattedListings = listings.map(listing => ({
@@ -21,7 +31,16 @@ export const getAllListings = async (req, res, next) => {
       updated_at: listing.updatedAt
     }));
     
-    res.json(formattedListings);
+    res.json({
+      listings: formattedListings,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: skip + listings.length < total
+      }
+    });
   } catch (error) {
     next(error);
   }

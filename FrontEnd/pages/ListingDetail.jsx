@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Bookmark } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { listingAPI, orderAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -35,7 +36,7 @@ const ListingDetail = () => {
           fetchProposals();
         }
       } catch (err) {
-        alert('Listing not found or access denied');
+        toast.error('Listing not found or access denied');
         navigate('/listings');
       } finally {
         setLoading(false);
@@ -79,7 +80,7 @@ const ListingDetail = () => {
 
   const handleContact = () => {
     if (!user) {
-      alert('Please login to contact the business');
+      toast.error('Please login to contact the business');
       navigate('/login');
       return;
     }
@@ -109,18 +110,39 @@ const ListingDetail = () => {
         price_offered: parseFloat(proposalData.price_offered),
         delivery_time: parseInt(proposalData.delivery_time)
       });
-      alert('Proposal submitted successfully!');
+      toast.success('Proposal submitted successfully!');
       setShowProposalForm(false);
       setProposalData({ message: '', price_offered: '', delivery_time: '' });
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to submit proposal');
+      toast.error(err.response?.data?.error || 'Failed to submit proposal');
     } finally {
       setSubmittingProposal(false);
     }
   };
 
   const handleAcceptProposal = async (proposalId) => {
-    if (!window.confirm('Accept this proposal and create an order?')) return;
+    const confirmed = await new Promise((resolve) => {
+      toast((t) => (
+        <div>
+          <p className="font-semibold mb-2">Accept this proposal and create an order?</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { toast.dismiss(t.id); resolve(true); }}
+              className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+            >
+              Accept
+            </button>
+            <button
+              onClick={() => { toast.dismiss(t.id); resolve(false); }}
+              className="bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ), { duration: Infinity });
+    });
+    if (!confirmed) return;
     try {
       // Create order from proposal - backend will mark proposal accepted and create order
       const res = await orderAPI.createOrder({ proposal_id: proposalId });
@@ -134,18 +156,39 @@ const ListingDetail = () => {
       }
     } catch (err) {
       console.error('Failed to accept proposal / create order:', err);
-      alert(err.response?.data?.error || 'Failed to accept proposal');
+      toast.error(err.response?.data?.error || 'Failed to accept proposal');
     }
   };
 
   const handleRejectProposal = async (proposalId) => {
-    if (!window.confirm('Reject this proposal?')) return;
+    const confirmed = await new Promise((resolve) => {
+      toast((t) => (
+        <div>
+          <p className="font-semibold mb-2">Reject this proposal?</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { toast.dismiss(t.id); resolve(true); }}
+              className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+            >
+              Reject
+            </button>
+            <button
+              onClick={() => { toast.dismiss(t.id); resolve(false); }}
+              className="bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ), { duration: Infinity });
+    });
+    if (!confirmed) return;
     try {
       await listingAPI.updateProposalStatus(id, proposalId, 'rejected');
-      alert('Proposal rejected');
+      toast.success('Proposal rejected');
       fetchProposals();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to reject proposal');
+      toast.error(err.response?.data?.error || 'Failed to reject proposal');
     }
   };
 

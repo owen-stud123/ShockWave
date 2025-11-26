@@ -75,7 +75,9 @@ const Profile = () => {
   }
 
   const SERVER_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-  const avatarUrl = profile.avatar_url ? `${SERVER_BASE_URL}${profile.avatar_url}` : `https://ui-avatars.com/api/?name=${profile.name.replace(' ', '+')}`;
+  const avatarUrl = profile.avatar_url 
+    ? (profile.avatar_url.startsWith('http') ? profile.avatar_url : `${SERVER_BASE_URL}${profile.avatar_url}`)
+    : `https://ui-avatars.com/api/?name=${profile.name.replace(' ', '+')}`;
   const showContactButton = isAuthenticated && user?.role === 'business' && user?.id !== profile.user_id;
 
   return (
@@ -105,13 +107,16 @@ const Profile = () => {
                       <h2 className="text-2xl font-bold text-charcoal mb-4">Portfolio</h2>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           {profile.portfolio_items?.length > 0 ? (
-                              profile.portfolio_items.map(item => (
-                                  <a href={`${SERVER_BASE_URL}${item.file_url}`} target="_blank" rel="noreferrer" key={item._id} className="border rounded-lg p-4 hover:shadow-md hover:border-mint">
+                              profile.portfolio_items.map(item => {
+                                  const fileUrl = item.file_url.startsWith('http') ? item.file_url : `${SERVER_BASE_URL}${item.file_url}`;
+                                  return (
+                                  <a href={fileUrl} target="_blank" rel="noreferrer" key={item._id} className="border rounded-lg p-4 hover:shadow-md hover:border-mint">
                                       <p className="font-bold">{item.title}</p>
                                       <p className="text-sm text-gray-600">{item.description}</p>
                                       <p className="text-xs text-mint mt-2 uppercase">View {item.file_type}</p>
                                   </a>
-                              ))
+                                  );
+                              })
                           ) : (
                               <p className="text-charcoal-light">No portfolio items have been uploaded yet.</p>
                           )}

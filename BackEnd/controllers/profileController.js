@@ -88,6 +88,8 @@ export const searchProfiles = async (req, res, next) => {
       location = '',
       min_rate = '',
       max_rate = '',
+      page = 1,
+      limit = 20
     } = req.query;
 
     const matchConditions = {
@@ -95,13 +97,12 @@ export const searchProfiles = async (req, res, next) => {
       role: 'designer'
     };
 
+    // Use MongoDB text search for search query (much faster than regex)
     if (search) {
-      matchConditions.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { 'profile.bio': { $regex: search, $options: 'i' } },
-        { 'profile.skills': { $regex: search, $options: 'i' } }
-      ];
+      matchConditions.$text = { $search: search };
     }
+    
+    // Use regex only for specific field filters (location, skill)
     if (skill) {
       matchConditions['profile.skills'] = { $regex: `^${skill}$`, $options: 'i' };
     }
@@ -115,9 +116,18 @@ export const searchProfiles = async (req, res, next) => {
         if (max_rate) matchConditions['profile.hourly_rate'].$lte = parseFloat(max_rate);
     }
 
-    const users = await User.find(matchConditions)
-      .select('name role profile')
-      .limit(50) // Limit results to prevent overload
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const total = await User.countDocuments(matchConditions);
+    
+    // Add text score for sorting when using text search
+    const projection = search 
+      ? { name: 1, role: 1, profile: 1, score: { $meta: 'textScore' } }
+      : { name: 1, role: 1, profile: 1 };
+    
+    const users = await User.find(matchConditions, projection)
+      .sort(search ? { score: { $meta: 'textScore' } } : { created_at: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
       .lean();
 
     // Enhance profiles with review stats
@@ -144,7 +154,16 @@ export const searchProfiles = async (req, res, next) => {
       };
     }));
     
-    res.json({ profiles });
+    res.json({ 
+      profiles,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit)),
+        hasMore: skip + users.length < total
+      }
+    });
   } catch (error) {
     next(error);
   }

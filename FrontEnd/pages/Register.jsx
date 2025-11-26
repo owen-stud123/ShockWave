@@ -92,15 +92,22 @@ const RoleSelection = ({ onSelect }) => (
         <h3 className="font-bold text-lg text-charcoal group-hover:text-mint">I'm a Business</h3>
         <p className="text-charcoal-light">Looking to hire talented designers for projects.</p>
       </button>
+      <button onClick={() => onSelect('admin')} className="w-full text-left p-6 border-2 border-lightgray-dark rounded-lg hover:border-purple-500 group">
+        <h3 className="font-bold text-lg text-charcoal group-hover:text-purple-500">I'm an Admin</h3>
+        <p className="text-charcoal-light">Platform administrator with full access.</p>
+      </button>
     </div>
   </div>
 );
 
-const RegistrationForm = ({ formData, onChange, onSubmit, isLoading, error, setStep }) => (
+const RegistrationForm = ({ formData, onChange, onSubmit, isLoading, error, setStep }) => {
+  const roleLabel = formData.role === 'designer' ? 'Designer' : formData.role === 'business' ? 'Business' : 'Admin';
+  
+  return (
   <>
     <button onClick={() => setStep(1)} className="text-sm text-mint mb-4">&larr; Back to role selection</button>
     <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-charcoal mb-2">Create Your {formData.role === 'designer' ? 'Designer' : 'Business'} Account</h2>
+        <h2 className="text-3xl font-bold text-charcoal mb-2">Create Your {roleLabel} Account</h2>
         <p className="text-sm text-charcoal-light">Let's get you started.</p>
     </div>
     <form onSubmit={onSubmit} className="space-y-5">
@@ -115,7 +122,8 @@ const RegistrationForm = ({ formData, onChange, onSubmit, isLoading, error, setS
       </button>
     </form>
   </>
-);
+  );
+};
 
 const InputField = ({ label, name, type, value, onChange, placeholder }) => (
     <div>
