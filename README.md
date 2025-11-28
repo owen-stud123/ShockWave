@@ -25,7 +25,10 @@ A modern, full-stack digital marketplace platform connecting creative profession
 For testing purposes, you can create a new account or use existing features:
 - **Register:** Click "Sign Up" and choose your role (Designer/Business)
 - **Email verification:** May be delayed due to email service restrictions (login still works)
+
 - **Admin Panel:** Contact admin for access
+               | Email: h.akaliza@alustudent.com
+               | Password: Imenahezzoh2.
 
 ---
 
