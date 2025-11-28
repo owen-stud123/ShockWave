@@ -1,6 +1,33 @@
-# 🌊 ShockWave
+# ShockWave
 
-This is a a full-stack digital marketplace platform connecting creative professionals with businesses. Built with React, Node.js, Express, MongoDB, and Socket.IO.
+A modern, full-stack digital marketplace platform connecting creative professionals with businesses. Built with React, Node.js, Express, MongoDB, and Socket.IO.
+
+[![Live Demo](https://img.shields.io/badge/demo-live-success)](https://shockwave-platform.vercel.app/)
+[![Platform Status](https://img.shields.io/badge/status-active-success)](https://shockwave-platform.vercel.app/)
+[![Deployed on](https://img.shields.io/badge/deployed%20on-Vercel-black)](https://vercel.com)
+
+## Live Demo
+
+**Experience ShockWave Live:** [https://shockwave-platform.vercel.app/](https://shockwave-platform.vercel.app/)
+
+### Quick Start (Deployed App)
+
+1. **Visit the platform:** [shockwave-platform.vercel.app](https://shockwave-platform.vercel.app/)
+2. **Register as Designer or Business**
+3. **Explore features:**
+   - Browse designers at `/browse`
+   - View project listings at `/listings`
+   - Access dashboard after login
+   - Try real-time messaging
+
+### Demo Credentials
+
+For testing purposes, you can create a new account or use existing features:
+- **Register:** Click "Sign Up" and choose your role (Designer/Business)
+- **Email verification:** May be delayed due to email service restrictions (login still works)
+- **Admin Panel:** Contact admin for access
+
+---
 
 
 ## Features
@@ -48,37 +75,6 @@ This is a a full-stack digital marketplace platform connecting creative professi
 - **Review Monitoring** - Oversee all user reviews and ratings
 - **System Health** - Monitor platform performance and issues
 ---
-
-## Tech Stack
-
-### **Frontend**
-| Technology | Version | Purpose |
-|-----------|---------|---------|
-| React | 19.1.1 | UI framework |
-| React Router DOM | 6.28.0 | Client-side routing |
-| Vite | 7.1.7 | Build tool & dev server |
-| Tailwind CSS | 3.4.14 | Utility-first CSS |
-| Framer Motion | 11.15.0 | Animations |
-| Axios | 1.7.9 | HTTP client |
-| Socket.IO Client | 4.7.5 | Real-time communication |
-| React Hot Toast | 2.6.0 | Notifications |
-| Lucide React | 0.554.0 | Icon library |
-
-### **Backend**
-| Technology | Version | Purpose |
-|-----------|---------|---------|
-| Node.js | - | Runtime environment |
-| Express | 4.21.1 | Web framework |
-| MongoDB | - | Database |
-| Mongoose | 8.4.0 | ODM library |
-| Socket.IO | 4.7.5 | WebSocket server |
-| JWT | 9.0.2 | Authentication tokens |
-| Bcrypt | 5.1.1 | Password hashing |
-| Nodemailer | 6.10.1 | Email service |
-| Cloudinary | 2.5.1 | Cloud storage |
-| Multer | 1.4.5 | File upload handling |
-| Express Validator | 7.2.0 | Input validation |
-| Helmet | 8.0.0 | Security middleware |
 
 ---
 
@@ -186,8 +182,8 @@ npm run dev:client
 
 6. **Open your browser**
 
-- **Main Site:** http://localhost:5173/
-- **API Server:** http://localhost:5000/api
+- **Frontend (Main Site):** http://localhost:5173/
+- **Backend API:** http://localhost:5000/api
 
 ---
 
@@ -301,6 +297,60 @@ npm run lint
 
 ---
 
+## Links
+
+- **Live Demo:** [https://shockwave-platform.vercel.app/](https://shockwave-platform.vercel.app/)
+- **GitHub Repository:** [ShockWave](https://github.com/owen-stud123/ShockWave)
+
+---
+
+## Deployment
+
+### Frontend Deployment (Vercel)
+
+The frontend is deployed on Vercel at: **[shockwave-platform.vercel.app](https://shockwave-platform.vercel.app/)**
+
+**Features:**
+- Automatic deployments from `main` branch
+- HTTPS enabled
+- Global CDN
+- Optimized build with Vite
+- Environment variables configured
+
+**Environment Variables (Vercel):**
+```bash
+VITE_API_URL=your_backend_api_url
+```
+
+### Backend Deployment
+
+The backend API can be deployed on:
+- **Render** (recommended for Node.js apps)
+- **Railway**
+- **Heroku**
+- **DigitalOcean App Platform**
+
+**Required Environment Variables:**
+```bash
+MONGO_URI=your_mongodb_connection
+JWT_SECRET=your_jwt_secret
+JWT_REFRESH_SECRET=your_refresh_secret
+CLIENT_URL=https://shockwave-platform.vercel.app
+EMAIL_USER=your_email
+EMAIL_PASS=your_email_password
+CLOUDINARY_CLOUD_NAME=your_cloudinary_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+```
+
+### MongoDB Database
+
+- **MongoDB Atlas** (Cloud database)
+- Connection string configured in backend environment
+- Automatic backups enabled
+- Optimized for production workloads
+
+---
 ---
 
 ## Author
@@ -308,9 +358,15 @@ npm run lint
 **Owen**
 
 - GitHub: [@owen-stud123](https://github.com/owen-stud123)
+- Repository: [ShockWave](https://github.com/owen-stud123/ShockWave)
+- Live Demo: [shockwave-platform.vercel.app](https://shockwave-platform.vercel.app/)
+
+---
 
 ---
 
 <div align="center">
+
+ **[Try ShockWave Live](https://shockwave-platform.vercel.app/)** 
 
 </div>
