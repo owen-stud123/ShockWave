@@ -281,6 +281,9 @@ npm run lint
 - Track active projects
 - Receive payments
 - Get reviews and ratings
+                     | Email: ganzaowen23@gmail.com    | Password: password1
+                     | Email: l.higiro@alustudent.com  | Password: password2
+
 
 ### Business (Client)
 - Browse designers by skills/location
@@ -289,6 +292,8 @@ npm run lint
 - Monitor project progress
 - Make secure payments
 - Leave reviews
+            | Email: manneyornella22@gmail.com | Password: Password2
+            | Email: akahezzoh@gmail.com       | Password: Password3
 
 ### Admin
 - Access admin dashboard
@@ -297,6 +302,7 @@ npm run lint
 - Moderate content
 - Manage disputes
 - View system analytics
+                 | Email: h.akaliza@alustudent.com  | Password: Imenahezzoh2.
 
 ---
 
